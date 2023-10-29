@@ -66,7 +66,7 @@ def run_data_tests(datasets: List, required_features, optional_features):
         for feature in required_features:
             assert feature in sample_event or f"x_{feature}" in sample_event, (
                 f"Feature [{feature}] not found in data, this is REQUIRED. Features"
-                f" found: {sample_event.keys}"
+                f" found: {sample_event.keys()}"
             )
 
         missing_optional_features = [
@@ -78,7 +78,7 @@ def run_data_tests(datasets: List, required_features, optional_features):
             warnings.warn(f"OPTIONAL feature [{feature}] not found in data")
 
         # Check that the number of nodes is compatible with the edge indexing
-        if "edge_index" in sample_event.keys and "x" in sample_event.keys:
+        if "edge_index" in sample_event.keys() and "x" in sample_event.keys():
             assert (
                 sample_event.x.shape[0] >= sample_event.edge_index.max().item() + 1
             ), (
@@ -129,8 +129,8 @@ def handle_hard_cuts(event, hard_cuts_config):
 
     for condition_key, condition_val in hard_cuts_config.items():
         assert (
-            condition_key in event.keys
-        ), f"Condition key {condition_key} not found in event keys {event.keys}"
+            condition_key in event.keys()
+        ), f"Condition key {condition_key} not found in event keys {event.keys()}"
         condition_lambda = get_condition_lambda(condition_key, condition_val)
         value_mask = condition_lambda(event)
         true_track_mask = true_track_mask * value_mask
@@ -141,7 +141,7 @@ def handle_hard_cuts(event, hard_cuts_config):
     remap_from_mask(event, graph_mask)
 
     num_edges = event.edge_index.shape[1]
-    for edge_key in event.keys:
+    for edge_key in event.keys():
         if (
             isinstance(event[edge_key], torch.Tensor)
             and num_edges in event[edge_key].shape
@@ -149,7 +149,7 @@ def handle_hard_cuts(event, hard_cuts_config):
             event[edge_key] = event[edge_key][..., graph_mask]
 
     num_track_edges = event.track_edges.shape[1]
-    for track_feature in event.keys:
+    for track_feature in event.keys():
         if (
             isinstance(event[track_feature], torch.Tensor)
             and num_track_edges in event[track_feature].shape
@@ -163,15 +163,15 @@ def handle_hard_node_cuts(event, hard_cuts_config):
     Remap the track_edges to the new node list.
     """
     node_like_feature = [
-        event[feature] for feature in event.keys if event.is_node_attr(feature)
+        event[feature] for feature in event.keys() if event.is_node_attr(feature)
     ][0]
     node_mask = torch.ones_like(node_like_feature, dtype=torch.bool)
 
     # TODO: Refactor this to simply trim the true tracks and check which nodes are in the true tracks
     for condition_key, condition_val in hard_cuts_config.items():
         assert (
-            condition_key in event.keys
-        ), f"Condition key {condition_key} not found in event keys {event.keys}"
+            condition_key in event.keys()
+        ), f"Condition key {condition_key} not found in event keys {event.keys()}"
         condition_lambda = get_condition_lambda(condition_key, condition_val)
         value_mask = condition_lambda(event)
         node_val_mask = map_tensor_handler(
@@ -190,7 +190,7 @@ def handle_hard_node_cuts(event, hard_cuts_config):
 
     # TODO: Refactor the below to use the remap_from_mask function
     num_nodes = event.num_nodes
-    for feature in event.keys:
+    for feature in event.keys():
         if (
             isinstance(event[feature], torch.Tensor)
             and event[feature].shape
@@ -201,7 +201,7 @@ def handle_hard_node_cuts(event, hard_cuts_config):
     num_tracks = event.track_edges.shape[1]
     track_mask = node_mask[event.track_edges].all(0)
     node_lookup = torch.cumsum(node_mask, dim=0) - 1
-    for feature in event.keys:
+    for feature in event.keys():
         if (
             isinstance(event[feature], torch.Tensor)
             and event[feature].shape
@@ -244,8 +244,8 @@ def get_weight_mask(event, weight_conditions):
 
     for condition_key, condition_val in weight_conditions.items():
         assert (
-            condition_key in event.keys
-        ), f"Condition key {condition_key} not found in event keys {event.keys}"
+            condition_key in event.keys()
+        ), f"Condition key {condition_key} not found in event keys {event.keys()}"
         condition_lambda = get_condition_lambda(condition_key, condition_val)
         value_mask = condition_lambda(event)
         graph_mask = graph_mask * map_tensor_handler(

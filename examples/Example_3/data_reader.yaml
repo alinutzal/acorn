@@ -2,7 +2,7 @@
 stage: data_reading
 model: TrackMLReader
 input_dir: /workspace/train_100_events/
-stage_dir: /workspace/results/feature_store/
+stage_dir: /workspace/train_100_events/results/feature_store/
 detector_path: /workspace/train_100_events/detectors.csv
 max_workers: 32
 

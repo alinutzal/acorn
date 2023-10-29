@@ -18,7 +18,7 @@ dependencies = [
     "pytorch-lightning===1.8.6",
     "pytest",
     "pytest-cov",
-    "torch-geometric==2.2.0",
+    #"torch-geometric==2.2.0",
     "uproot",
     "class-resolver",
 ]
