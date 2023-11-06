@@ -1,0 +1,26 @@
+# base image
+#FROM pytorch/pytorch:1.13.0-cuda11.6-cudnn8-runtime
+#FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel
+FROM nvcr.io/nvidia/pytorch:23.07-py3
+
+# local and envs
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV PIP_ROOT_USER_ACTION=ignore
+ARG DEBIAN_FRONTEND=noninteractive
+
+# add some packages
+RUN apt-get update
+RUN apt-get install -y git h5utils wget vim
+
+# update python pip
+RUN python -m pip install --upgrade pip
+RUN python --version
+RUN python -m pip --version
+
+RUN pip install pyg_lib torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cu121.html
+#RUN pip install pyg_lib torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
+
+# copy and install package
+COPY . .
+RUN python -m pip install -e .
