@@ -16,4 +16,9 @@
 **master**
 *env*
 *dist*
+*.yaml
+FRNN/
+frnn*
+prefix*
 run/
+examples/Example_3

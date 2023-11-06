@@ -371,7 +371,7 @@ class EdgeClassifierStage(LightningModule):
             return
         eval_dict = self.shared_evaluation(batch, batch_idx)
         scores = eval_dict["output"]
-        batch = eval_dict["batch"]
+        #batch = eval_dict["batch"]
         self.save_edge_scores(batch, scores, dataset)
 
     def save_edge_scores(self, event, scores, dataset):
@@ -563,7 +563,7 @@ class GraphDataset(Dataset):
         if (
             "input_cut" in self.hparams.keys()
             and self.hparams["input_cut"]
-            and "scores" in event.keys
+            and "scores" in event.keys()
         ):
             # Apply a score cut to the event
             self.apply_score_cut(event, self.hparams["input_cut"])
@@ -590,7 +590,7 @@ class GraphDataset(Dataset):
         )
 
         # Concat all edge-like features together
-        for key in event.keys:
+        for key in event.keys():
             if key == "truth_map":
                 continue
             if not isinstance(event[key], torch.Tensor) or not event[key].shape:
@@ -629,7 +629,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] / self.hparams["node_scales"][i]
 
         return event
@@ -648,7 +648,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] * self.hparams["node_scales"][i]
         return event
 
@@ -658,7 +658,7 @@ class GraphDataset(Dataset):
         """
         passing_edges_mask = event.scores >= score_cut
         num_edges = event.edge_index.shape[1]
-        for key in event.keys:
+        for key in event.keys():
             if (
                 isinstance(event[key], torch.Tensor)
                 and event[key].shape

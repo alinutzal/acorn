@@ -1,10 +1,10 @@
 # CommonFramework configuration
 stage: data_reading
 model: TrackMLReader
-input_dir: /workspace/train_100_events/
-stage_dir: /workspace/train_100_events/results/feature_store/
-detector_path: /workspace/train_100_events/detectors.csv
-max_workers: 32
+input_dir: /workspaces/train100events/
+stage_dir: /workspaces/train100events/results/feature_store/
+detector_path: /workspaces/train100events/detectors.csv
+max_workers: 12
 
 # Feature Configurations
 feature_sets:
