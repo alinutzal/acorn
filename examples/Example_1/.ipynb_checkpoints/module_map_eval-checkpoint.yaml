@@ -1,0 +1,20 @@
+# CommonFramework configuration
+stage: graph_construction
+model: PyModuleMap
+input_dir: /pscratch/sd/a/alazar/cf/Example_1/feature_sets/ # Should contain the files used in training and inference
+stage_dir: /pscratch/sd/a/alazar/cf/Example_1/module_map/ # A directory to be created that will store logs, artifacts, and output data
+
+# Dataset parameters
+data_split: [0, 0, 10] # Number of [training, validation, testing] examples
+
+# Evaluation parameters
+target_tracks: 
+  pt: [1000., .inf]
+  nhits: [3., .inf]
+  primary: True
+
+# Plotting parameters
+plots:
+  graph_construction_efficiency: 
+    title: Module Map Edge-wise Efficiency
+    pt_units: MeV

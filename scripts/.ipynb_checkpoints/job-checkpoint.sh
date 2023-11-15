@@ -1,0 +1,1 @@
+sbatch scripts/submitm.sh
