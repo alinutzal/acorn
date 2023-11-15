@@ -7,20 +7,20 @@ def read(fname):
 
 
 dependencies = [
-    "tqdm",
-    "ipykernel",
-    "atlasify",
-    "trackml@ https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3",
-    "networkx",
-    "seaborn",
-    "pyyaml",
-    "click",
-    "pytorch-lightning===1.8.6",
-    "pytest",
-    "pytest-cov",
-    "torch-geometric==2.2.0",
-    "uproot",
-    "class-resolver",
+    # "tqdm",
+    # "ipykernel",
+    # "atlasify",
+    # "trackml@ https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3",
+    # "networkx",
+    # "seaborn",
+    # "pyyaml",
+    # "click",
+    # "pytorch-lightning===1.8.6",
+    # "pytest",
+    # "pytest-cov",
+    # "torch-geometric==2.2.0",
+    # "uproot",
+    # "class-resolver",
 ]
 
 setup(

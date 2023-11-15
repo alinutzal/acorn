@@ -50,7 +50,6 @@ class EdgeClassifierStage(LightningModule):
         """
         Initialise the Lightning Module that can scan over different GNN training regimes
         """
-
         self.save_hyperparameters(hparams)
 
         # Assign hyperparameters
@@ -183,19 +182,23 @@ class EdgeClassifierStage(LightningModule):
         return optimizer, scheduler
 
     def training_step(self, batch, batch_idx):
-        output = self(batch)
-        loss = self.loss_function(output, batch)
+        if batch.edge_index.shape[1] < self.hparams.get(
+            "max_training_graph_size", 2800000
+        ):
+            output = self(batch)
+            loss = self.loss_function(output, batch)
+            self.log(
+                "train_loss",
+                loss,
+                on_step=False,
+                on_epoch=True,
+                batch_size=1,
+                sync_dist=True,
+            )
 
-        self.log(
-            "train_loss",
-            loss,
-            on_step=False,
-            on_epoch=True,
-            batch_size=1,
-            sync_dist=True,
-        )
-
-        return loss
+            return loss
+        else:
+            return None
 
     def loss_function(self, output, batch):
         """
@@ -214,22 +217,27 @@ class EdgeClassifierStage(LightningModule):
             " weighting is handled in preprocessing."
         )
 
-        negative_mask = ((batch.y == 0) & (batch.weights != 0)) | (batch.weights < 0)
-
-        negative_loss = F.binary_cross_entropy_with_logits(
-            output[negative_mask],
-            torch.zeros_like(output[negative_mask]),
-            weight=batch.weights[negative_mask].abs(),
-        )
-
-        positive_mask = (batch.y == 1) & (batch.weights > 0)
-        positive_loss = F.binary_cross_entropy_with_logits(
-            output[positive_mask],
-            torch.ones_like(output[positive_mask]),
-            weight=batch.weights[positive_mask].abs(),
-        )
-
-        return positive_loss + negative_loss
+        if self.hparams.get("loss_balancing", False):
+            negative_mask = ((batch.y == 0) & (batch.weights != 0)) | (
+                batch.weights < 0
+            )
+            negative_loss = F.binary_cross_entropy_with_logits(
+                output[negative_mask],
+                torch.zeros_like(output[negative_mask]),
+                weight=batch.weights[negative_mask].abs(),
+            )
+            positive_mask = (batch.y == 1) & (batch.weights > 0)
+            positive_loss = F.binary_cross_entropy_with_logits(
+                output[positive_mask],
+                torch.ones_like(output[positive_mask]),
+                weight=batch.weights[positive_mask].abs(),
+            )
+            return positive_loss + negative_loss
+        else:
+            loss = F.binary_cross_entropy_with_logits(
+                output, batch.y.float(), weight=batch.weights.abs()
+            )
+        return loss
 
     def shared_evaluation(self, batch, batch_idx):
         output = self(batch)
@@ -289,7 +297,6 @@ class EdgeClassifierStage(LightningModule):
             edge_positive - (preds & (~target_truth) & all_truth).sum().float()
         )
 
-        # Eff, pur, auc
         target_eff = target_true_positive / target_true
         target_pur = target_true_positive / edge_positive
         total_pur = all_true_positive / edge_positive
@@ -313,7 +320,7 @@ class EdgeClassifierStage(LightningModule):
 
         return preds
 
-    def on_train_start(self):
+    def on_train_epoch_start(self):
         self.trainer.strategy.optimizers = [
             self.trainer.lr_scheduler_configs[0].scheduler.optimizer
         ]
@@ -403,7 +410,7 @@ class EdgeClassifierStage(LightningModule):
         """
 
         # Load data from testset directory
-        graph_constructor = cls(config)
+        graph_constructor = cls(config).to(device)
         if checkpoint is not None:
             print(f"Restoring model from {checkpoint}")
             graph_constructor = cls.load_from_checkpoint(checkpoint, hparams=config).to(
@@ -458,7 +465,7 @@ class EdgeClassifierStage(LightningModule):
 
         for condition_key, condition_val in target_tracks.items():
             condition_lambda = get_condition_lambda(condition_key, condition_val)
-            passing_tracks = passing_tracks.cpu() * condition_lambda(event)
+            passing_tracks = passing_tracks.to(self.device) * condition_lambda(event)
 
         event.target_mask = passing_tracks
 
@@ -516,8 +523,11 @@ class GraphDataset(Dataset):
         event = self.apply_hard_cuts(event)
         event = self.construct_weighting(event)
         event = self.handle_edge_list(event)
-        event = self.add_edge_features(event)
         event = self.scale_features(event)
+        if self.hparams.get("edge_features") is not None:
+            event = self.add_edge_features(
+                event
+            )  # scaling must be done before adding features
         return event
 
     def apply_hard_cuts(self, event):
