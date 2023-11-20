@@ -148,9 +148,9 @@ class EdgeClassifierStage(LightningModule):
         """
         if self.trainset is None:
             return None
-        num_workers = self.hparams.get("num_workers", [1, 1, 1])[0]
+        num_workers = self.hparams.get("num_workers", [8, 8, 8])[0]
         return DataLoader(
-            self.trainset, batch_size=1, num_workers=num_workers, shuffle=True
+            self.trainset, batch_size=1, num_workers=0, shuffle=True
         )
 
     def val_dataloader(self):
@@ -159,8 +159,8 @@ class EdgeClassifierStage(LightningModule):
         """
         if self.valset is None:
             return None
-        num_workers = self.hparams.get("num_workers", [1, 1, 1])[1]
-        return DataLoader(self.valset, batch_size=1, num_workers=num_workers)
+        num_workers = self.hparams.get("num_workers", [8, 8, 8])[1]
+        return DataLoader(self.valset, batch_size=1, num_workers=0) #num_workers)
 
     def test_dataloader(self):
         """
@@ -168,8 +168,8 @@ class EdgeClassifierStage(LightningModule):
         """
         if self.testset is None:
             return None
-        num_workers = self.hparams.get("num_workers", [1, 1, 1])[2]
-        return DataLoader(self.testset, batch_size=1, num_workers=num_workers)
+        num_workers = self.hparams.get("num_workers", [8, 8, 8])[2]
+        return DataLoader(self.testset, batch_size=1, num_workers=0) #num_workers)
 
     def predict_dataloader(self):
         """
@@ -573,7 +573,7 @@ class GraphDataset(Dataset):
         if (
             "input_cut" in self.hparams.keys()
             and self.hparams["input_cut"]
-            and "scores" in event.keys
+            and "scores" in event.keys()
         ):
             # Apply a score cut to the event
             self.apply_score_cut(event, self.hparams["input_cut"])
@@ -600,7 +600,7 @@ class GraphDataset(Dataset):
         )
 
         # Concat all edge-like features together
-        for key in event.keys:
+        for key in (event.keys()):
             if key == "truth_map":
                 continue
             if not isinstance(event[key], torch.Tensor) or not event[key].shape:
@@ -639,7 +639,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] / self.hparams["node_scales"][i]
 
         return event
@@ -658,7 +658,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] * self.hparams["node_scales"][i]
         return event
 
@@ -668,7 +668,7 @@ class GraphDataset(Dataset):
         """
         passing_edges_mask = event.scores >= score_cut
         num_edges = event.edge_index.shape[1]
-        for key in event.keys:
+        for key in event.keys()():
             if (
                 isinstance(event[key], torch.Tensor)
                 and event[key].shape

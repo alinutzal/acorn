@@ -134,7 +134,7 @@ def graph_scoring_efficiency(lightning_module, plot_config, config):
         # target_eta.append(event.eta[event.target_mask])
         target_eta.append(event.eta[event.track_edges[:, event.target_mask][0]])
         # get all edges passing edge cut
-        if "scores" in event.keys:
+        if "scores" in event.keys():
             pred.append((event.scores >= config["score_cut"]).cpu())
         else:
             pred.append(event.y.cpu())
@@ -260,7 +260,7 @@ def graph_roc_curve(lightning_module, plot_config, config):
         event = event.to(lightning_module.device)
 
         # Need to apply score cut and remap the truth_map
-        if "weights" in event.keys:
+        if "weights" in event.keys():
             target_y = event.weights.bool() & event.y.bool()
         else:
             target_y = event.y.bool()

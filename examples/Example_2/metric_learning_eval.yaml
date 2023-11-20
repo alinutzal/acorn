@@ -1,7 +1,7 @@
 # CommonFramework configuration
 stage: graph_construction
 model: MetricLearning
-input_dir: /global/cfs/cdirs/m2616/pmtuan/inferred_data/feature_sets/ # Should contain the files used in training and inference
+input_dir: /pscratch/sd/a/alazar/cf/Example_2/feature_sets/ # Should contain the files used in training and inference
 stage_dir: /pscratch/sd/a/alazar/cf/Example_2/metric_learning/ # A directory to be created that will store logs, artifacts, and output data
 
 # Dataset parameters

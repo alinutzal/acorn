@@ -216,7 +216,7 @@ def plot_pt_eff(particles, pt_units, save_path="track_reconstruction_eff_vs_pt.p
 
 
 def rearrange_by_distance(event, edge_index):
-    assert "r" in event.keys and "z" in event.keys, "event must contain r and z"
+    assert "r" in event.keys() and "z" in event.keys(), "event must contain r and z"
     distance = event.r**2 + event.z**2
 
     # flip edges that are pointing inward

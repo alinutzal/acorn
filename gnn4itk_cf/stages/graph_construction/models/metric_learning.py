@@ -590,7 +590,7 @@ class GraphDataset(Dataset):
         """
 
         if not hasattr(event, "num_nodes"):
-            assert "x" in event.keys, "No node features found in event"
+            assert "x" in event.keys(), "No node features found in event"
             event.num_nodes = event.x.shape[0]
 
     def scale_features(self, event):
@@ -607,7 +607,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] / self.hparams["node_scales"][i]
 
     def unscale_features(self, event):
@@ -624,7 +624,7 @@ class GraphDataset(Dataset):
                 self.hparams["node_scales"], list
             ), "Feature scaling must be a list of ints or floats"
             for i, feature in enumerate(self.hparams["node_features"]):
-                assert feature in event.keys, f"Feature {feature} not found in event"
+                assert feature in event.keys(), f"Feature {feature} not found in event"
                 event[feature] = event[feature] * self.hparams["node_scales"][i]
 
     def handle_edge_list(self, event):
