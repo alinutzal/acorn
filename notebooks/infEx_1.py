@@ -11,4 +11,4 @@ config_tbe = "../examples/Example_1/track_building_eval.yaml"
 #infer(config_mm)
 #infer(config_gnn)
 #infer(config_tbi)
-evaluate(config_tbe)
+evaluate(config_tbe,None)
