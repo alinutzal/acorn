@@ -46,7 +46,7 @@ class TrackBuildingStage:
         """
         Initialise the Lightning Module that can scan over different GNN training regimes
         """
-
+        print("Plotting tracking efficiency vs. pT")
         self.trainset, self.valset, self.testset = None, None, None
         self.dataset_class = GraphDataset
 
@@ -128,7 +128,6 @@ class TrackBuildingStage:
         """
         The gateway for the evaluation stage. This class method is called from the eval_stage.py script.
         """
-
         # Load data from testset directory
         graph_constructor = cls(config)
         graph_constructor.setup(stage="test")
@@ -147,7 +146,6 @@ class TrackBuildingStage:
         Plot the graph construction efficiency vs. pT of the edge.
         """
         all_y_truth, all_pt = [], []
-
         evaluated_events = []
         for event in tqdm(self.testset):
             evaluated_events.append(
@@ -192,6 +190,15 @@ class TrackBuildingStage:
             f" {n_dup_reconstructed_particles}"
         )
 
+        print(f"Number of reconstructed particles: {n_reconstructed_particles}")
+        print(f"Number of particles: {n_particles}")
+        print(f"Number of matched tracks: {n_matched_tracks}")
+        print(f"Number of tracks: {n_tracks}")
+        print(
+            "Number of duplicate reconstructed particles:"
+            f" {n_dup_reconstructed_particles}"
+        )
+        
         # Plot the results across pT and eta
         eff = n_reconstructed_particles / n_particles
         fake_rate = 1 - (n_matched_tracks / n_tracks)
@@ -200,6 +207,10 @@ class TrackBuildingStage:
         logging.info(f"Efficiency: {eff:.3f}")
         logging.info(f"Fake rate: {fake_rate:.3f}")
         logging.info(f"Duplication rate: {dup_rate:.3f}")
+        
+        print(f"Efficiency: {eff:.3f}")
+        print(f"Fake rate: {fake_rate:.3f}")
+        print(f"Duplication rate: {dup_rate:.3f}")
 
         # First get the list of particles without duplicates
         grouped_reco_particles = particles.groupby("particle_id")[

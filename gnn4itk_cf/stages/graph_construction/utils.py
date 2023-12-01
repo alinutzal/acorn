@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import torch
-
+import cupy as cp
+from pylibraft.common import DeviceResources
+from pylibraft.neighbors.brute_force import knn
 
 def build_signal_edges(event, weighting_config, true_edges):
     signal_mask = torch.zeros_like(true_edges[0], dtype=torch.bool)

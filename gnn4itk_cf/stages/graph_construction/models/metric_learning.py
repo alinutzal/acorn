@@ -233,7 +233,7 @@ class MetricLearning(GraphConstructionStage, LightningModule):
 
         loss = self.loss_function(batch, embedding, weights)
 
-        self.log("train_loss", loss, batch_size=1)
+        self.log("train_loss", loss, batch_size=1,sync_dist=True)
 
         return loss
 

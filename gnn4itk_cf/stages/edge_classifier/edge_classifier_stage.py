@@ -371,7 +371,7 @@ class EdgeClassifierStage(LightningModule):
             return
         eval_dict = self.shared_evaluation(batch, batch_idx)
         scores = eval_dict["output"]
-        #batch = eval_dict["batch"]
+        batch = eval_dict["batch"]
         self.save_edge_scores(batch, scores, dataset)
 
     def save_edge_scores(self, event, scores, dataset):

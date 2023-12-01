@@ -1,7 +1,6 @@
 stage: edge_classifier
 model: InteractionGNN
-input_dir: /workspaces/train100events/results/filter/ # Should contain the files used in training and inference
-stage_dir: /workspaces/train100events/results/gnn/ # A directory to be created that will store logs, artifacts, and output data
-project: CF_Example_3_GNN # Used in logging
+input_dir: /workspace/train_100_events/results/filter/ 
+stage_dir: /workspace/train_100_events/results/gnn/ 
 gpus: 1
 nodes: 1
