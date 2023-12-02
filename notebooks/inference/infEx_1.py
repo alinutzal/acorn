@@ -44,9 +44,10 @@ config_tbe = "../examples/Example_1/track_building_eval.yaml"
 
 #infer(config_dr )
 #infer(config_mm)
-#infer(config_gnn)
+infer(config_gnn)
 #infer(config_tbi)
-#evaluate(config_tbe,None)
+
+
 with open("../examples/Example_2/metric_learning_train.yaml", "r") as f:
     config_ml = yaml.load(f, Loader=yaml.FullLoader)
 model_ml = MetricLearning(config_ml)
@@ -61,7 +62,9 @@ dataloaders = model_ml.predict_dataloader()
 model_ml = MetricLearning.load_from_checkpoint(config_ml['stage_dir']+'artifacts/best.ckpt')
 model_gnn.setup('predict')
 dataloaders = model_gnn.predict_dataloader()
-model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/best.ckpt')
+model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/best-v3.ckpt')
+
+evaluate(config_tbe,config_gnn['stage_dir']+'artifacts/best-v3.ckpt')
 
 def evaluate_labelled_graphs(graphset, config):
     all_y_truth, all_pt  = [], []
@@ -116,13 +119,7 @@ for batch_idx, batch in enumerate(dataloaders[2]):
     batch = batch.to("cuda")    
     gnn = model_gnn.shared_evaluation(batch,batch_idx)
     batch = gnn['batch']
-    batch.truth_map = graph_intersection(
-            batch.edge_index,
-            batch.track_edges,
-            return_y_pred=False,
-            return_y_truth=False,
-            return_truth_to_pred=True,
-        )
+
     edge_mask = gnn['output'] > model_gnn.hparams['edge_cut'] 
     # Get number of nodes
     if hasattr(batch, "num_nodes"):
