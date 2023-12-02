@@ -7,6 +7,8 @@ project: CF_Example_3_Filter # Used in logging
 gpus: 1
 nodes: 1
 
+#changes
+
 # Dataset parameters
 data_split: [0, 0, 10] # Number of [training, validation, testing] examples
 
