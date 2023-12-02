@@ -3,7 +3,7 @@ stage: data_reading
 model: AthenaReader
 input_dir: /m4439/Example_1/athena_100_events/
 stage_dir: /scratch/cf/Example_1/feature_sets/
-module_lookup_path: /m4439/Example_1/example_1_module_ids.txt #/global/cfs/cdirs
+module_lookup_path: /m4439/Example_1/example_1_module_ids.txt 
 
 # Feature Configurations
 feature_sets:
