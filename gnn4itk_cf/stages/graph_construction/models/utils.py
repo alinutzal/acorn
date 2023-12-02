@@ -20,6 +20,10 @@ import torch.nn as nn
 import torch
 from torch_geometric.nn import radius
 
+import cupy as cp
+from pylibraft.common import DeviceResources
+from pylibraft.neighbors.brute_force import knn
+
 try:
     import frnn
 
@@ -74,7 +78,21 @@ def build_edges(
         positive_idxs = idxs >= 0
         edge_list = torch.stack([ind[positive_idxs], idxs[positive_idxs]]).long()
     else:
-        edge_list = radius(database, query, r=r_max, max_num_neighbors=k_max)
+        #edge_list = radius(database, query, r=r_max, max_num_neighbors=k_max)
+        dists, idxs = knn(cp.asarray(database), cp.asarray(query), k_max)
+        idxs = cp.asarray(idxs)
+        D = cp.asarray(dists)
+        idxs_t =  torch.as_tensor(idxs, device=query.device)
+        D =  torch.as_tensor(D, device=query.device)
+        ind = (
+            torch.arange(idxs_t.shape[0], device=query.device)
+            .repeat(idxs_t.shape[1], 1)
+            .T.int()
+        )
+        #positive_idxs = idxs_t >= 0
+        edge_list = torch.stack([ind[D <= r_max**2], idxs_t[D <= r_max**2]])
+        #print(edge_list[0],edge_list[1])
+        #print(len(edge_list[0]))
 
     # Reset indices subset to correct global index
     if indices is not None:

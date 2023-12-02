@@ -8,7 +8,7 @@ gpus: 1
 nodes: 1
 
 # Dataset parameters
-data_split: [0, 0, 10] # Number of [training, validation, testing] examples
+data_split: [80, 10, 10] # Number of [training, validation, testing] examples
 
 # Evaluation parameters
 score_cut: 0.5

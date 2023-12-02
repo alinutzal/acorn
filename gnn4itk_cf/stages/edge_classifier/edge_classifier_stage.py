@@ -600,7 +600,7 @@ class GraphDataset(Dataset):
         )
 
         # Concat all edge-like features together
-        for key in (event.keys()):
+        for key in event.keys():
             if key == "truth_map":
                 continue
             if not isinstance(event[key], torch.Tensor) or not event[key].shape:
@@ -668,7 +668,7 @@ class GraphDataset(Dataset):
         """
         passing_edges_mask = event.scores >= score_cut
         num_edges = event.edge_index.shape[1]
-        for key in event.keys()():
+        for key in event.keys():
             if (
                 isinstance(event[key], torch.Tensor)
                 and event[key].shape

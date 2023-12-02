@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import torch
-from torch_scatter import scatter
+#from torch_scatter import scatter
 from torch_geometric.data import Data
 
 

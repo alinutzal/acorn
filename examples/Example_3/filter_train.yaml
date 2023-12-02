@@ -44,12 +44,12 @@ batchnorm: True
 hidden_activation: ReLU
 
 # Training parameters
-warmup: 10
+warmup: 2
 ratio: 5
 scheduler: StepLR
 lr: 0.001
 factor: 0.8
 patience: 10
-max_epochs: 50
+max_epochs: 5
 metric_to_monitor: auc
 metric_mode: max

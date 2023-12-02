@@ -118,7 +118,7 @@ def graph_scoring_efficiency(lightning_module, plot_config, config):
 
     for event in tqdm(lightning_module.testset):
         event = event.to(lightning_module.device)
-
+        print(event)
         # Need to apply score cut and remap the truth_map
         if "score_cut" in config:
             lightning_module.apply_score_cut(event, config["score_cut"])

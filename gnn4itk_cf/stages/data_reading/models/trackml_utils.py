@@ -194,7 +194,7 @@ def extract_dir_new(hits, cells, detector):
 def check_diff(h1, h2, name):
     n1 = h1[name].values
     n2 = h2[name].values
-    print(name, max(np.absolute(n1 - n2)))
+    #print(name, max(np.absolute(n1 - n2)))
 
 
 #############################################

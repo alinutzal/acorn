@@ -29,7 +29,7 @@ def load_reconstruction_df(graph):
         hit_id = graph.hit_id
     else:
         hit_id = torch.arange(graph.num_nodes)
-    pids = torch.zeros(hit_id.shape[0], dtype=torch.int64)
+    pids = torch.zeros(hit_id.shape[0], dtype=torch.int64,device='cpu')
     pids[graph.track_edges[0]] = graph.particle_id
     pids[graph.track_edges[1]] = graph.particle_id
 
@@ -125,8 +125,8 @@ def evaluate_labelled_graph(
         matching_fraction += 1e-6
 
     # Load the labelled graphs as reconstructed dataframes
-    reconstruction_df = load_reconstruction_df(graph)
-    particles_df = load_particles_df(graph)
+    reconstruction_df = load_reconstruction_df(graph.to("cpu"))
+    particles_df = load_particles_df(graph.to("cpu"))
 
     # Get matching dataframe
     matching_df = get_matching_df(

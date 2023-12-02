@@ -1,7 +1,7 @@
 from collections import defaultdict
 import torch
 from torch.utils.checkpoint import checkpoint
-from torch_scatter import scatter_add, scatter_mean, scatter_max
+#from torch_scatter import scatter_add, scatter_mean, scatter_max
 from torch_geometric.nn import aggr, HeteroConv, MessagePassing
 from torch_geometric.nn.conv.hetero_conv import group
 
