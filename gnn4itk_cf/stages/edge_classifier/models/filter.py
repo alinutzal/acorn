@@ -66,7 +66,7 @@ class Filter(EdgeClassifierStage):
         output = self.memory_robust_eval(batch)
         loss = self.loss_function(output, batch)
 
-        self.log("train_loss", loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, batch_size=1,sync_dist=True)
 
         return loss
 

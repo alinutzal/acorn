@@ -83,8 +83,9 @@ def lightning_infer(config, stage_module):
     stage_module.setup(stage="predict")
 
     trainer = Trainer(
-        gpus=config["gpus"],
+        devices=config["gpus"],
         num_nodes=config["nodes"],
+        accelerator = 'gpu',
     )
 
     with torch.inference_mode():

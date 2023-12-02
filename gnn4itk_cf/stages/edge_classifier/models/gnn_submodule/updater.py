@@ -1,9 +1,9 @@
 from collections import defaultdict
 import torch
 from torch.utils.checkpoint import checkpoint
-from torch_scatter import scatter_add, scatter_mean, scatter_max
+#from torch_scatter import scatter_add, scatter_mean, scatter_max
 from torch_geometric.nn import aggr, HeteroConv, MessagePassing
-from torch_geometric.nn.conv.hgt_conv import group
+from torch_geometric.nn.conv.hetero_conv import group
 
 from gnn4itk_cf.utils import make_mlp
 

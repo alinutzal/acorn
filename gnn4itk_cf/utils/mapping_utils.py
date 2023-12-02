@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import torch
-from torch_scatter import scatter
+#from torch_scatter import scatter
 from torch_geometric.data import Data
 
 
@@ -376,7 +376,7 @@ def get_directed_prediction(event: Data, edge_pred, edge_index):
     event["edge_index"] = edge_index[:, outter_sorted_indices].T.view(2, -1, 2)[0].T
 
     # rearrange edge-level features as well
-    for key in event.keys:
+    for key in event.keys():
         if not isinstance(event[key], torch.Tensor) or not event[key].shape:
             continue
         if event[key].shape[0] == num_edges:

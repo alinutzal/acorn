@@ -82,7 +82,7 @@ def process_data(events, pt_background_cut, pt_signal_cut, noise, triplets, inpu
             torch.isin(event.edge_index, event.signal_true_edges).all(0) & event.y_pid
         )
 
-        if (input_cut is not None) and "scores" in event.keys:
+        if (input_cut is not None) and "scores" in event.keys():
             score_mask = event.scores > input_cut
             for edge_attr in ["edge_index", "y", "y_pid", "pid_signal", "scores"]:
                 event[edge_attr] = event[edge_attr][..., score_mask]
@@ -166,17 +166,17 @@ class LargeDataset(Dataset):
         if "delta_eta" in self.hparams.keys():
             eta_mask = hard_eta_edge_slice(self.hparams["delta_eta"], event)
             for edge_attr in ["edge_index", "y", "y_pid", "pid_signal", "scores"]:
-                if edge_attr in event.keys:
+                if edge_attr in event.keys():
                     event[edge_attr] = event[edge_attr][..., eta_mask]
 
         if (
             ("input_cut" in self.hparams.keys())
             and (self.hparams["input_cut"] is not None)
-            and "scores" in event.keys
+            and "scores" in event.keys()
         ):
             score_mask = event.scores > self.hparams["input_cut"]
             for edge_attr in ["edge_index", "y", "y_pid", "pid_signal", "scores"]:
-                if edge_attr in event.keys:
+                if edge_attr in event.keys():
                     event[edge_attr] = event[edge_attr][..., eta_mask]
 
         return event

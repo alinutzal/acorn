@@ -43,12 +43,14 @@ from . import utils
 class TrackBuildingStage:
     def __init__(self, hparams):
         super().__init__()
-        """
-        Initialise the Lightning Module that can scan over different GNN training regimes
-        """
 
-        self.trainset, self.valset, self.testset = None, None, None
         self.dataset_class = GraphDataset
+
+        # Logging config
+        self.log = logging.getLogger("TrackBuilding")
+        log_level = hparams.get("log_level", "WARNING").upper()
+        self.log.setLevel(logging._nameToLevel.get(log_level, logging.WARNING))
+        self.log.info(f"Using log level {log_level}")
 
     def setup(self, stage="fit"):
         """
@@ -69,7 +71,6 @@ class TrackBuildingStage:
         Load in the data for training, validation and testing.
         """
 
-        # if stage == "fit":
         for data_name, data_num in zip(
             ["trainset", "valset", "testset"], self.hparams["data_split"]
         ):
@@ -95,13 +96,18 @@ class TrackBuildingStage:
             "region",
             "hit_id",
             "pt",
+            "radius",
+            "eta_particle",
         ]
 
-        run_data_tests(
-            [self.trainset, self.valset, self.testset],
-            required_features,
-            optional_features,
-        )
+        # Test only non empty data set
+        datasets = [
+            getattr(self, data_name)
+            for data_name in ["trainset", "valset", "testset"]
+            if hasattr(self, data_name)
+        ]
+
+        run_data_tests(datasets, required_features, optional_features)
 
     @classmethod
     def infer(cls, config):
@@ -128,7 +134,6 @@ class TrackBuildingStage:
         """
         The gateway for the evaluation stage. This class method is called from the eval_stage.py script.
         """
-
         # Load data from testset directory
         graph_constructor = cls(config)
         graph_constructor.setup(stage="test")
@@ -147,7 +152,6 @@ class TrackBuildingStage:
         Plot the graph construction efficiency vs. pT of the edge.
         """
         all_y_truth, all_pt = [], []
-
         evaluated_events = []
         for event in tqdm(self.testset):
             evaluated_events.append(
@@ -192,6 +196,15 @@ class TrackBuildingStage:
             f" {n_dup_reconstructed_particles}"
         )
 
+        print(f"Number of reconstructed particles: {n_reconstructed_particles}")
+        print(f"Number of particles: {n_particles}")
+        print(f"Number of matched tracks: {n_matched_tracks}")
+        print(f"Number of tracks: {n_tracks}")
+        print(
+            "Number of duplicate reconstructed particles:"
+            f" {n_dup_reconstructed_particles}"
+        )
+        
         # Plot the results across pT and eta
         eff = n_reconstructed_particles / n_particles
         fake_rate = 1 - (n_matched_tracks / n_tracks)
@@ -200,6 +213,10 @@ class TrackBuildingStage:
         logging.info(f"Efficiency: {eff:.3f}")
         logging.info(f"Fake rate: {fake_rate:.3f}")
         logging.info(f"Duplication rate: {dup_rate:.3f}")
+        
+        print(f"Efficiency: {eff:.3f}")
+        print(f"Fake rate: {fake_rate:.3f}")
+        print(f"Duplication rate: {dup_rate:.3f}")
 
         # First get the list of particles without duplicates
         grouped_reco_particles = particles.groupby("particle_id")[

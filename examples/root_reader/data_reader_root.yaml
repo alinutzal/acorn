@@ -1,13 +1,13 @@
 # CommonFramework configuration
 stage: data_reading
 model: AthenaRootReader
-input_dir: <PUT HERE THE FOLDER STORING THE DUMP ROOT FILES>
+input_dir: /m3443/data/ITk-upgrade/ReDumpped2022Data/GNN4Itk__mc15_14TeV.600012.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.recon.RDO.e8185_s3595_s3600_r12401/GNN4Itk__mc15_14TeV.600012.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.recon.RDO.e8185_s3595_s3600_r12401__J200.root
 input_sets: 
-    train: train_set_ttbar_uncorr.txt
-    valid: valid_set_ttbar_uncorr.txt
-    test: test_set_ttbar_uncorr.txt
+    train: red_train_set_ttbar_uncorr.txt
+    valid: red_valid_set_ttbar_uncorr.txt
+    test: red_test_set_ttbar_uncorr.txt
 
-stage_dir: ./feature_store_from_root/
+stage_dir: /scratch/cf/CTD_2023/feature_store_from_root/
 
 max_workers: 1
 
