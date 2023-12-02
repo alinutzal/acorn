@@ -18,3 +18,5 @@
 *dist*
 *checkpoint*
 run/
+bin/
+lib/
