@@ -21,3 +21,7 @@ FRNN/
 frnn*
 prefix*
 run/
+*.qdstrm
+*.qdrep
+*.out
+*.nsys-rep
