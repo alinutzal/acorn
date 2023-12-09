@@ -18,3 +18,7 @@
 *dist*
 *checkpoint*
 run/
+itk*out
+*.zip
+*results*
+job-checkpoint*
