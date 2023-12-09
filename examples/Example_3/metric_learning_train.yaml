@@ -1,8 +1,8 @@
 # CommonFramework configuration
 stage: graph_construction
 model: MetricLearning
-input_dir: /pscratch/sd/a/alazar/cf/Example_3/feature_store/ 
-stage_dir: /pscratch/sd/a/alazar/cf/Example_3/metric_learning/
+input_dir: /scratch/cf/Example_3_coda/feature_store/    #/pscratch/sd/a/alazar/cf/Example_3/feature_store/ 
+stage_dir: /scratch/cf/Example_3_coda/metric_learning/
 project: CF_Example_3_MetricLearning # Used in logging
 gpus: 1
 nodes: 1

@@ -1,2 +1,1 @@
-sbatch scripts/submit_train.sh
-sbatch scripts/submit_infer.sh
+sbatch -n 1 -t 20 ./submit_itk.sh examples/Example_3/data_reader.yaml
