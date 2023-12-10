@@ -15,4 +15,4 @@ module load miniconda3
 module load cuda
 source activate umap3
 
-srun --gpu_cmode=exclusive nsys profile -o profile9 -t cuda,cublas,nvtx python profiling_mini.py
+srun --gpu_cmode=exclusive nsys profile -o profile10 -t cuda,cublas,nvtx python profiling_mini.py

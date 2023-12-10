@@ -62,11 +62,11 @@ scheduler = {
 	
 
 # %%
-num_workers=4
+num_workers=16
 
 # %%
 train_loader = DataLoader(
-            model.trainset, batch_size=1, num_workers=num_workers
+            model.trainset, batch_size=1, num_workers=num_workers, pin_memory=True, persistent_workers=True
         )
 val_loader = DataLoader(
             model.valset, batch_size=1, num_workers=num_workers
