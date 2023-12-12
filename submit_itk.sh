@@ -7,7 +7,7 @@
 #SBATCH --gpu-bind none
 #SBATCH --time=01:00:00
 ##SBATCH --image=nvcr.io/nvdlfwea/pyg/pyg:23.10-py3
-#SBATCH --module=gpu,nccl-2.18
+#SBATCH --module=gpu
 #SBATCH -J itk-era5
 #SBATCH -o %x-%j.out
 
@@ -30,7 +30,7 @@ fi
 export MASTER_ADDR=$(hostname)
 
 # Reversing order of GPUs to match default CPU affinities from Slurm
-export CUDA_VISIBLE_DEVICES=3,2,1,0
+#export CUDA_VISIBLE_DEVICES=3,2,1,0
 
 set -x
 # srun -u shifter -V ${DATADIR}:/data -V ${LOGDIR}:/logs \
@@ -43,7 +43,7 @@ srun -u podman-hpc run --rm --gpu \
         -e XDG_RUNTIME_DIR=/tmp/user \
         -v /tmp:/tmp \
         -v $HOME:$HOME \
-        -v $SCRATCH:/scratch \
+        -v $PSCRATCH:/scratch \
         -v /global/cfs/cdirs/m4439:/m4439 \
         -v ${DATADIR}:/data \
         -v ${LOGDIR}:/logs \
@@ -52,7 +52,7 @@ srun -u podman-hpc run --rm --gpu \
         docker.io/docexoty/exatrkx:cuda12-pytorch2.1 \
         bash -c "
         source activate gnn4itk; 
-        cd $HOME/acorn; 
+        cd $HOME/acorn_new; 
         pip install -e .;
         ${PROFILE_CMD} ${args}
         "        

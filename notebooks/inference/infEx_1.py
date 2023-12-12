@@ -104,9 +104,9 @@ def evaluate_labelled_graphs(graphset, config):
     fake_rate = 1 - (n_matched_tracks / n_tracks)
     dup_rate = n_dup_reconstructed_particles / n_reconstructed_particles
 
-    logging.info(f"Efficiency: {eff:.3f}")
-    logging.info(f"Fake rate: {fake_rate:.3f}")
-    logging.info(f"Duplication rate: {dup_rate:.3f}")
+    # logging.info(f"Efficiency: {eff:.3f}")
+    # logging.info(f"Fake rate: {fake_rate:.3f}")
+    # logging.info(f"Duplication rate: {dup_rate:.3f}")
     print(f"Efficiency: {eff:.3f}")
     print(f"Fake rate: {fake_rate:.3f}")
     print(f"Duplication rate: {dup_rate:.3f}")

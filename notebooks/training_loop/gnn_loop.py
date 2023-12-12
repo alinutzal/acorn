@@ -62,7 +62,7 @@ scheduler = {
 # %%
 num_epochs=model.hparams["max_epochs"]
 start = tt()
-run = wandb.init(project=model.hparams["project"], entity='gnnproject')
+run = wandb.init(project=model.hparams["project"])
 
 for epoch in range(num_epochs):
     torch.cuda.nvtx.range_push(f"epoch {epoch}")
