@@ -2,7 +2,7 @@
 
 Usage
 ```
-g4i-infer data_reader_root.yaml
+g4-infer data_reader_root.yaml
 ```
 
 In the `.yaml` config file, you need to set:

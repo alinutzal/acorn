@@ -1,13 +1,13 @@
 # CommonFramework configuration
 stage: data_reading
 model: AthenaRootReader
-input_dir: /global/cfs/cdirs/m3443/data/ITk-upgrade/ReDumpped2022Data/GNN4Itk__mc15_14TeV.600012.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.recon.RDO.e8185_s3595_s3600_r12401/GNN4Itk__mc15_14TeV.600012.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.recon.RDO.e8185_s3595_s3600_r12401__J200.root
+input_dir: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/GNN4Itk_v2__mc15_14TeV.600012.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.recon.RDO.e8185_s3770_s3773_r14431/
 input_sets: 
-    train: /global/homes/a/alazar/acorn/examples/CTD_2023/train_set_ttbar_uncorr.txt
-    valid: /global/homes/a/alazar/acorn/examples/CTD_2023/valid_set_ttbar_uncorr.txt
-    test: /global/homes/a/alazar/acorn/examples/CTD_2023/test_set_ttbar_uncorr.txt
+    train: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/sampling/train_set_ttbar_uncorr.txt
+    valid: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/sampling/valid_set_ttbar_uncorr.txt
+    test: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/sampling/test_set_ttbar_uncorr.txt
 
-stage_dir: /pscratch/sd/a/alazar/cf/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/feature_store_ttbar_uncorr/
+stage_dir: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/feature_store/
 
 max_workers: 16
 
