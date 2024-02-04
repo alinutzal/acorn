@@ -18,4 +18,4 @@
 *dist*
 run/
 *local*
-*.yaml*
+**/*.yaml

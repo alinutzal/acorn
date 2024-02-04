@@ -159,8 +159,8 @@ def inference(model_mm, model_gnn, device):
     print(len(model_mm.valset))
     for batch_idx, (graph, _, truth) in enumerate(model_mm.valset):
     #for batch_idx, batch in enumerate(model_gnn.valset):
-        print(device)
-        graph.to(device)
+        #print(device)
+        #graph.to(device)
         #if batch.event_id != '000000123': continue
 
         running_time = []
@@ -195,7 +195,8 @@ def inference(model_mm, model_gnn, device):
         start = time.time()
         if device == 'cuda':        
             starter.record() #gpu   
-        batch = model_gnn.valset.preprocess_event(batch) 
+        batch = model_gnn.valset.preprocess_event(batch.to('cpu')) 
+        batch.to(device)
 
         if device == 'cuda':
             ender.record()
@@ -281,7 +282,7 @@ if __name__ == "__main__":
     #########################################
     ### 2 Initializing the Model
     #########################################
-    exPath = os.environ['HOME']+'/acorn_new/examples/Example_1/'
+    exPath = os.environ['HOME']+'/acorn/examples/Example_1/'
     dataPath = '/pscratch/sd/a/alazar/cf/Example_1/feature_store/'
     mmPath = '/pscratch/sd/a/alazar/cf/Example_1/module_map/'
     confidr = exPath + 'data_reader.yaml'
@@ -299,7 +300,7 @@ if __name__ == "__main__":
     config_gnn = yaml.load(open(configGnn), Loader=yaml.FullLoader)
     config_tbi = yaml.load(open(configTbi), Loader=yaml.FullLoader)   
     config_tbe = yaml.safe_load(open(configTbe, "r"))
-    model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/best-4l0jlwuh-val_loss=0.085163-epoch=77.ckpt')    
+    model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/last--v1.ckpt')    
 
     model_gnn.hparams['input_dir'] = mmPath
     print(model_gnn.hparams['input_dir'])
@@ -328,7 +329,7 @@ if __name__ == "__main__":
     print(list1, list2)
     df1 = pd.DataFrame(list1, columns=['col_1','col_2','col_3','col_4','col_5','col_6','col_7','col_8','col_9','col_10',\
         'col_11','col_12','col_13','col_14','col_15','col_16','col_17'])
-    df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y"])
+    #df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y"])
     df1.to_csv("resuts1.csv")
-    df2.to_csv("resuts2.csv")
+    #df2.to_csv("resuts2.csv")
     print("Total: ",((end - start),gpu_time)) 
