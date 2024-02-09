@@ -1,9 +1,9 @@
 # CommonFramework configuration
 stage: data_reading
 model: AthenaReader
-input_dir: MY_DATA_DIR/Example_2/athena_100_events
-stage_dir: MY_DATA_DIR/Example_2/feature_store/
-module_lookup_path: MY_DATA_DIR/Example_2/example_1_module_ids.txt
+input_dir: /fs/ess/PLS0144/data/ITk-upgrade/Example_1/athena_100_events
+stage_dir: /fs/scratch/PLS0144/alina/ITk_Results/Example_2/feature_store/
+module_lookup_path: /fs/ess/PLS0144/data/ITk-upgrade/Example_1/example_1_module_ids.txt
 
 # Feature Configurations
 feature_sets:

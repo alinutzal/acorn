@@ -1,9 +1,9 @@
 # CommonFramework configuration
 stage: data_reading
 model: TrackMLReader
-input_dir: MY_DATA_DIR/Example_3/trackml_100_events
-stage_dir: MY_DATA_DIR/Example_3/feature_store/
-detector_path: MY_DATA_DIR/Example_3/detectors.csv
+input_dir: /fs/ess/PLS0144/data/ITk-upgrade/Example_3/train_100_events
+stage_dir: /fs/scratch/PLS0144/alina/ITk_Results/Example_3/feature_store/
+detector_path: /fs/ess/PLS0144/data/ITk-upgrade/Example_3/detectors.csv
 max_workers: 32
 
 # Feature Configurations
