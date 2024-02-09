@@ -23,7 +23,7 @@ This script:
 import os
 import yaml
 import click
-
+import torch
 try:
     import wandb
 except ImportError:
@@ -106,6 +106,7 @@ def lightning_train(
     )
     trainer = get_trainer(config, default_root_dir)
     trainer.fit(stage_module)
+    trainer.print(torch.cuda.memory_summary())
 
 
 if __name__ == "__main__":

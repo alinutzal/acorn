@@ -23,14 +23,40 @@ try:
 except ImportError:
     wandb = None
 import yaml
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from acorn import stages
 from acorn.stages import *  # noqa
 from pytorch_lightning.strategies.ddp import DDPStrategy
+from lightning.pytorch.strategies import FSDPStrategy
+#from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning import Callback
+from pytorch_lightning.utilities import rank_zero_only
+import time
+
+seed_everything(42, workers=True)
+
+class DDPIterationsPerSecondCallback(Callback):
+    def on_train_start(self, trainer, pl_module):
+        if trainer.global_rank == 0:
+            self.start_time = time.time()
+    
+    def on_train_epoch_start(self, trainer, pl_module, batch, batch_idx, dataloader_idx):
+        # Reset start time at the beginning of each batch, but only for the rank 0 process
+        if trainer.global_rank == 0:
+            self.start_time = time.time()
+
+    @rank_zero_only
+    def on_train_epoch_end(self, trainer, pl_module, outputs):
+        # Calculate and log iterations per second, but only from the rank 0 process
+        duration = time.time() - self.start_time
+        if duration > 0:
+            iterations_per_second = 1.0 / duration
+            pl_module.log('iterations_per_second', iterations_per_second, on_step=True, on_epoch=False)
+
 
 
 def str_to_class(stage, model):
@@ -158,10 +184,14 @@ def get_trainer(config, default_root_dir):
         devices=devices,
         num_nodes=config["nodes"],
         max_epochs=config["max_epochs"],
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback], #,StochasticWeightAveraging(swa_lrs=0.05)], #,DDPIterationsPerSecondCallback()],
         logger=logger,
         precision=config.get("precision", 32),
-        strategy=DDPStrategy(find_unused_parameters=False, static_graph=True),
+        strategy=DDPStrategy(find_unused_parameters=False) #, static_graph=True),
+        #strategy="fsdp",
+        #strategy = FSDPStrategy(cpu_offload=True),
+        deterministic=True,
+        profiler="simple",
         default_root_dir=default_root_dir,
     )
 

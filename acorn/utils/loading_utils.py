@@ -128,7 +128,8 @@ def handle_weighting(event, weighting_config):
 
 
 def handle_hard_cuts(event, hard_cuts_config):
-    true_track_mask = torch.ones_like(event.truth_map, dtype=torch.bool)
+    true_track_mask = torch.ones_like(event.truth_map, dtype=torch.bool, device=event.y.device)
+
 
     for condition_key, condition_val in hard_cuts_config.items():
         assert condition_key in get_pyg_data_keys(
@@ -136,6 +137,7 @@ def handle_hard_cuts(event, hard_cuts_config):
         ), f"Condition key {condition_key} not found in event keys {get_pyg_data_keys(event)}"
         condition_lambda = get_condition_lambda(condition_key, condition_val)
         value_mask = condition_lambda(event)
+
         true_track_mask = true_track_mask * value_mask
 
     graph_mask = torch.isin(

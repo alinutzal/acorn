@@ -1,0 +1,17 @@
+Number of reconstructed particles: 13887
+Number of particles: 15874
+Number of matched tracks: 15008
+Number of tracks: 15068
+Number of duplicate reconstructed particles: 1121
+Efficiency: 0.875
+Fake rate: 0.004
+Duplication rate: 0.081
+
+Number of reconstructed particles: 1298
+Number of particles: 1516
+Number of matched tracks: 1412
+Number of tracks: 1429
+Number of duplicate reconstructed particles: 114
+Efficiency: 0.856
+Fake rate: 0.012
+Duplication rate: 0.088

@@ -34,9 +34,13 @@ def clopper_pearson(passed: float, total: float, level: float = 0.68):
     hi = (
         scipy.stats.beta.ppf(1 - alpha, passed + 1, total - passed)
         if passed < total
-        else 1.0
+        else 0.0
     )
-    average = passed / total
+    if passed == 0 and total == 0:
+        average = 0
+    else:
+        average = passed / total
+    #print(lo, hi, passed, total)
     return (average - lo, hi - average)
 
 

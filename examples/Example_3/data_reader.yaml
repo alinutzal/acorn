@@ -1,9 +1,9 @@
 # CommonFramework configuration
 stage: data_reading
 model: TrackMLReader
-input_dir: MY_DATA_DIR/Example_3/trackml_100_events
-stage_dir: MY_DATA_DIR/Example_3/feature_store/
-detector_path: MY_DATA_DIR/Example_3/detectors.csv
+input_dir: /global/cfs/cdirs/m4439/Example_3_coda/trackml_100_events
+stage_dir: /pscratch/sd/a/alazar/cf/Example_3/feature_store/
+detector_path: /global/cfs/cdirs/m4439/Example_3_coda/detectors.csv
 max_workers: 32
 
 # Feature Configurations

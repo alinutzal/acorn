@@ -225,6 +225,8 @@ def plot_eff(
         if "x_bins" in varconf:
             x_bins = varconf["x_bins"]
         elif "x_lim" in varconf:
+            if varconf["x_lim"][0] == 0:
+                varconf["x_lim"][0] = 0.00001
             x_bins = np.logspace(
                 np.log10(varconf["x_lim"][0]), np.log10(varconf["x_lim"][1]), 10
             )

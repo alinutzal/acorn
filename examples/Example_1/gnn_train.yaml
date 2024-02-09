@@ -1,11 +1,13 @@
 stage: edge_classifier
 model: InteractionGNN
-input_dir: MY_DATA_DIR/Example_1/module_map/ # Should contain the files used in training and inference
-stage_dir: MY_DATA_DIR/Example_1/gnn/ # A directory to be created that will store logs, artifacts, and output data
+input_dir: /pscratch/sd/a/alazar/cf/Example_1/module_map/ # Should contain the files used in training and inference
+stage_dir: /pscratch/sd/a/alazar/cf/Example_1/gnn/ # A directory to be created that will store logs, artifacts, and output data
 project: CF_Example_1_GNN # Used in logging
 accelerator: gpu
+#strategy: ddp
 devices: 1
 nodes: 1
+num_workers: [16,16,16]
 
 # Dataset parameters
 data_split: [80, 10, 10] # Number of [training, validation, testing] examples
@@ -34,6 +36,7 @@ edge_cut: 0.5
 undirected: True
 node_features: [r, phi, z]
 node_scales:   [1000, 3.14, 1000]
+#edge_features: [delta_phi, delta_eta, delta_r]
 hidden: 128
 n_graph_iters: 8
 nb_node_layer: 2
