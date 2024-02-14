@@ -184,17 +184,17 @@ def add_edge_features(event, config):
         handle_edge_features(event, config["edge_features"])
     return event
 
-def inference(model_mm, model_gnn, device):
+def inference(mode, model_map, model_metric, model_filer, model_gnn, device):
     graphs = []
     all_events_time = []
     all_mm_time = []
+    if mode == 'map':
+        model_mm = model_map
+    else:
+        model_mm = model_metric
+    
     print(len(model_mm.valset))
     for batch_idx, (graph, _, truth) in enumerate(model_mm.valset):
-    #for batch_idx, batch in enumerate(model_gnn.valset):
-        #print(device)
-        #graph.to(device)
-        #if batch.event_id != '000000123': continue
-
         running_time = []
         print(graph.event_id)
         running_time.append(graph.event_id)
@@ -202,16 +202,12 @@ def inference(model_mm, model_gnn, device):
         if device == 'cuda':
             starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
         start = time.time()
+        start_event = start
         if device == 'cuda':        
             starter.record() #gpu
-        batch, mm_time_ind = model_mm.build_graph(graph, truth)
+            starter_event = starter
+        batch, mm_time_ind = model_map.build_graph(graph, truth)
         mm_time = 0
-
-        # want bypass saving to disk
-        # Initiate a graph dataset instance from 
-
-
-
         if device == 'cuda':
             ender.record()
             torch.cuda.synchronize()
@@ -227,8 +223,6 @@ def inference(model_mm, model_gnn, device):
         start = time.time()
         if device == 'cuda':        
             starter.record() #gpu   
-        #batch = model_gnn.valset.preprocess_event(batch.to('cpu')) 
-        #handle_hard_cuts(batch.to('cpu'), config_gnn["hard_cuts"])
         handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
         batch = scale_features(batch, model_gnn.hparams)
         if config_gnn.get("edge_features") is not None:
@@ -294,11 +288,15 @@ def inference(model_mm, model_gnn, device):
             ender.record()
             torch.cuda.synchronize()
             gpu_time = starter.elapsed_time(ender)/1000.0
+            gpu_time_event = starter_event.elapsed_time(ender)/1000.0
         end = time.time()
 
         running_time.extend(((end - start), gpu_time))
         print("Tracking: ", ((end - start), gpu_time))
         
+        running_time.extend(((end - start_event), gpu_time_event))
+        print("Total per event: ", ((end - start_event), gpu_time_event))      
+         
         graphs.append(batch.to('cpu'))
         del batch
         gc.collect()
@@ -359,7 +357,7 @@ if __name__ == "__main__":
     if device == 'cuda':
         starter.record()   
     #profile.run('inference(model_mm, model_gnn, device)')
-    list1, list2 = inference(model_mm, model_gnn, device)
+    list1, list2 = inference('map', model_mm, model_mm, model_gnn, model_gnn, device)
     end = time.time()
     end_cpu = time.process_time()
     if device == 'cuda':
@@ -368,9 +366,13 @@ if __name__ == "__main__":
         gpu_time = starter.elapsed_time(ender)/1000.0    
     print("Total: ",((end - start),gpu_time))  
 
-    df1 = pd.DataFrame(list1, columns=['event_id','MM','MM_1','Preprocess','Preprocess_1','GNN', 'GNN_1','Tracking','Tracking_1'])
+    df1 = pd.DataFrame(list1, columns=['event_id','MM','MM_gpu','Preprocess','Preprocess_gpu',\
+        'GNN', 'GNN_gpu','Tracking','Tracking_gpu','Total','Total_gpu'])
     df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y"])
-    resultsDF = pd.concat([df1 , df2])
+    resultsDF = pd.concat([df1 , df2], axis=1)
+    resultsDF.set_index('event_id', inplace=True)
+    resultsDF.loc['mean'] = resultsDF.mean()
+    resultsDF.loc['std'] = resultsDF.std()
     print(resultsDF)
     resultsDF.to_csv("resuts.csv")
 
