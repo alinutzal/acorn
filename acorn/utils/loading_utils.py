@@ -128,8 +128,9 @@ def handle_weighting(event, weighting_config):
 
 
 def handle_hard_cuts(event, hard_cuts_config):
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    event = event.to(device)
     true_track_mask = torch.ones_like(event.truth_map, dtype=torch.bool, device=event.y.device)
-
 
     for condition_key, condition_val in hard_cuts_config.items():
         assert condition_key in get_pyg_data_keys(
@@ -141,12 +142,13 @@ def handle_hard_cuts(event, hard_cuts_config):
         true_track_mask = true_track_mask * value_mask
 
     graph_mask = torch.isin(
-        event.edge_index, event.track_edges[:, true_track_mask]
+        event.edge_index.to(event.y.device), event.track_edges[:, true_track_mask]
     ).all(0)
     remap_from_mask(event, graph_mask)
 
     num_edges = event.edge_index.shape[1]
     for edge_key in get_pyg_data_keys(event):
+        #print(edge_key)
         if (
             isinstance(event[edge_key], torch.Tensor)
             and num_edges in event[edge_key].shape

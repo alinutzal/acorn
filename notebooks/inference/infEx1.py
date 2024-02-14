@@ -17,6 +17,9 @@ from acorn.stages.graph_construction.models.py_module_map import PyModuleMap
 
 from acorn.stages.track_building import utils 
 from torch_geometric.utils import to_scipy_sparse_matrix
+from acorn.utils.version_utils import get_pyg_data_keys
+
+from acorn.utils import handle_hard_cuts
 
 from pynvml import *
 from pynvml.smi import nvidia_smi
@@ -151,6 +154,35 @@ def tracking_efficiency(dataset, config): #plot_config,
     #             f"track_reconstruction_eff_vs_{var}_{self.hparams['matching_style']}.png",
     #         ),
     #     )
+    
+def scale_features(event, config):
+    """
+    Handle feature scaling for the event
+    """
+
+    if (
+        config is not None
+        and "node_scales" in config.keys()
+        and "node_features" in config.keys()
+    ):
+        assert isinstance(
+            config["node_scales"], list
+        ), "Feature scaling must be a list of ints or floats"
+        for i, feature in enumerate(config["node_features"]):
+            assert feature in get_pyg_data_keys(
+                event
+            ), f"Feature {feature} not found in event"
+            event[feature] = event[feature] / config["node_scales"][i]
+
+    return event
+
+def add_edge_features(event, config):
+    if "edge_features" in config.keys():
+        assert isinstance(
+            config["edge_features"], list
+        ), "Edge features must be a list of strings"
+        handle_edge_features(event, config["edge_features"])
+    return event
 
 def inference(model_mm, model_gnn, device):
     graphs = []
@@ -164,20 +196,20 @@ def inference(model_mm, model_gnn, device):
         #if batch.event_id != '000000123': continue
 
         running_time = []
-        
+        print(graph.event_id)
+        running_time.append(graph.event_id)
         gpu_time = 0
         if device == 'cuda':
             starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
         start = time.time()
         if device == 'cuda':        
             starter.record() #gpu
-        batch= model_mm.build_graph(graph, truth)
+        batch, mm_time_ind = model_mm.build_graph(graph, truth)
         mm_time = 0
 
         # want bypass saving to disk
         # Initiate a graph dataset instance from 
-        print(batch.event_id)
-        running_time.extend((batch.event_id))
+
 
 
         if device == 'cuda':
@@ -195,8 +227,14 @@ def inference(model_mm, model_gnn, device):
         start = time.time()
         if device == 'cuda':        
             starter.record() #gpu   
-        batch = model_gnn.valset.preprocess_event(batch.to('cpu')) 
-        batch.to(device)
+        #batch = model_gnn.valset.preprocess_event(batch.to('cpu')) 
+        #handle_hard_cuts(batch.to('cpu'), config_gnn["hard_cuts"])
+        handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
+        batch = scale_features(batch, model_gnn.hparams)
+        if config_gnn.get("edge_features") is not None:
+            event = add_edge_features(
+            event
+        )  # scaling must be done before adding features
 
         if device == 'cuda':
             ender.record()
@@ -214,10 +252,7 @@ def inference(model_mm, model_gnn, device):
             starter.record() #gpu   
 
         with torch.no_grad():
-            gnn = model_gnn.shared_evaluation(batch,batch_idx)
-            batch = gnn['batch']
-
-        #batch.scores = torch.sigmoid(gnn['output'])
+            batch.scores = torch.sigmoid(model_gnn(batch))
 
         edge_mask = batch.scores > config_tbi['score_cut']
         if device == 'cuda':
@@ -265,11 +300,11 @@ def inference(model_mm, model_gnn, device):
         print("Tracking: ", ((end - start), gpu_time))
         
         graphs.append(batch.to('cpu'))
-        del batch, gnn 
+        del batch
         gc.collect()
         torch.cuda.empty_cache()
         all_events_time.append(running_time)
-        all_mm_time.append(mm_time)
+        all_mm_time.append(mm_time_ind)
     tracking_efficiency(graphs, config_tbe)
 
     return (all_events_time, all_mm_time)
@@ -293,22 +328,27 @@ if __name__ == "__main__":
     configTbe = exPath + 'track_building_eval.yaml'
     
     config_mm = yaml.load(open(configMm), Loader=yaml.FullLoader)
+    print("Loading Module Map")
     model_mm = PyModuleMap(config_mm)
     model_mm.load_module_map()
     model_mm.load_data(dataPath)
+    print("Loaded Module Map")
     
     config_gnn = yaml.load(open(configGnn), Loader=yaml.FullLoader)
     config_tbi = yaml.load(open(configTbi), Loader=yaml.FullLoader)   
     config_tbe = yaml.safe_load(open(configTbe, "r"))
+    print("Loading GNN")
     model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/last--v1.ckpt')    
 
     model_gnn.hparams['input_dir'] = mmPath
-    print(model_gnn.hparams['input_dir'])
     model_gnn.setup('predict')
+    print("Loaded GNN")
     #print(model_gnn.valset)
     
+    print("Put models on GPU")
     model_mm = model_mm.to(device)
     model_gnn = model_gnn.to(device)
+    print("Models loaded to GPU")
     #print(len(model_mm.valset))
  
     gpu_time = 0
@@ -325,11 +365,12 @@ if __name__ == "__main__":
     if device == 'cuda':
         ender.record()
         torch.cuda.synchronize()
-        gpu_time = starter.elapsed_time(ender)/1000.0     
-    print(list1, list2)
-    df1 = pd.DataFrame(list1, columns=['col_1','col_2','col_3','col_4','col_5','col_6','col_7','col_8','col_9','col_10',\
-        'col_11','col_12','col_13','col_14','col_15','col_16','col_17'])
-    #df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y"])
-    df1.to_csv("resuts1.csv")
-    #df2.to_csv("resuts2.csv")
-    print("Total: ",((end - start),gpu_time)) 
+        gpu_time = starter.elapsed_time(ender)/1000.0    
+    print("Total: ",((end - start),gpu_time))  
+
+    df1 = pd.DataFrame(list1, columns=['event_id','MM','MM_1','Preprocess','Preprocess_1','GNN', 'GNN_1','Tracking','Tracking_1'])
+    df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y"])
+    resultsDF = pd.concat([df1 , df2])
+    print(resultsDF)
+    resultsDF.to_csv("resuts.csv")
+
