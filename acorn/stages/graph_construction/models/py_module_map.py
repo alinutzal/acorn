@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 import time
-
+import rmm, pprint
 try:
     import cudf
 except ImportError:
@@ -114,6 +114,8 @@ class PyModuleMap(GraphConstructionStage):
         os.makedirs(output_dir, exist_ok=True)
         logging.info(f"Building graphs for {data_name}")
 
+        #rmm.reinitialize(pool_allocator = True, initial_pool_size = 40e9,maximum_pool_size= 74e9)
+        
         all_time = []
         for graph, _, truth in tqdm(dataset):
             if graph is None:
@@ -124,7 +126,7 @@ class PyModuleMap(GraphConstructionStage):
             (graph,r_time) = self.build_graph(graph, truth)
             all_time = all_time.append(r_time)
             torch.save(graph, os.path.join(output_dir, f"event{graph.event_id}.pyg"))
-        print(all_time)
+        #print(all_time)
 
     def build_graph(self, graph, truth):
         """
@@ -134,11 +136,15 @@ class PyModuleMap(GraphConstructionStage):
         running_time_mm = []
         start_time = time.time()
         #torch.cuda.nvtx.range_push("merge_start")
-
+        
+        mr = rmm.mr.get_current_device_resource()
+        stats_pool_memory_resource = rmm.mr.StatisticsResourceAdaptor(mr)
+        rmm.mr.set_current_device_resource(stats_pool_memory_resource)
+        
         hits = cudf.from_pandas(truth.copy()) if self.gpu_available else truth.copy()
 
         hits = self.get_hit_features(hits)
-
+                
         merged_hits_1 = hits.merge(
             self.MM_1, how="inner", left_on="mid", right_on="mid_2"
         ) #.to_pandas()  # .drop(columns="mid")
@@ -147,7 +153,7 @@ class PyModuleMap(GraphConstructionStage):
         ) #.to_pandas()  # .drop(columns="mid")
 
         #torch.cuda.nvtx.range_pop()
-        print(f"Time to merge: {time.time() - start_time}")
+        #print(f"Time to merge: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
         start_time = time.time()
         #torch.cuda.nvtx.range_push("doub1_start")
@@ -172,7 +178,7 @@ class PyModuleMap(GraphConstructionStage):
             ]
         ]
         #torch.cuda.nvtx.range_pop()
-        print(f"Time to get doublet edges: {time.time() - start_time}")
+        #print(f"Time to get doublet edges: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
         start_time = time.time()
         #torch.cuda.nvtx.range_push("doub2_start")
@@ -208,7 +214,7 @@ class PyModuleMap(GraphConstructionStage):
             right_on=["mid_1", "mid_2", "mid_3"],
         )
         #torch.cuda.nvtx.range_pop()
-        print(f"Time to get doublet edges 2: {time.time() - start_time}")
+        #print(f"Time to get doublet edges 2: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
         start_time = time.time()
         #torch.cuda.nvtx.range_push("rest_start")
@@ -221,7 +227,7 @@ class PyModuleMap(GraphConstructionStage):
         )
         triplet_edges = self.apply_triplet_cuts(triplet_edges)
        
-        print(f"Time to get triplet edges: {time.time() - start_time}")
+        #print(f"Time to get triplet edges: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
         start_time = time.time()
         if self.gpu_available:
@@ -243,7 +249,8 @@ class PyModuleMap(GraphConstructionStage):
                     ),
                 ]
             )
-        print(f"Time to concat: {time.time() - start_time}")
+
+        #print(f"Time to concat: {time.time() - start_time}")    
         running_time_mm.extend([(time.time() - start_time)])
         start_time = time.time()
         doublet_edges = doublet_edges.drop_duplicates()
@@ -257,8 +264,12 @@ class PyModuleMap(GraphConstructionStage):
         graph.y = y
         graph.truth_map = truth_map
         #torch.cuda.nvtx.range_pop()
-        print(f"Time to get y: {time.time() - start_time}")
+        max_mem = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
+        #print("Max memory usage: ", max_mem)
+
+        #print(f"Time to get y: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
+        running_time_mm.extend([max_mem])
         return (graph, running_time_mm)
 
     def get_hit_features(self, hits):

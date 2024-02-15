@@ -8,20 +8,20 @@ import pandas as pd
 
 from time import time as tt
 from tqdm import tqdm
-import time, pprint
+import time, rmm, pprint
+import logging
 
 from acorn.stages.graph_construction.models.metric_learning import MetricLearning
 from acorn.stages.edge_classifier.models.filter import Filter
-from acorn.stages.edge_classifier import InteractionGNN
+from acorn.stages.edge_classifier import InteractionGNN, InteractionGNN2
 from acorn.stages.graph_construction.models.py_module_map import PyModuleMap
 from acorn.stages.graph_construction.models.utils import graph_intersection, build_edges
 from acorn.stages.track_building import utils 
 from torch_geometric.utils import to_scipy_sparse_matrix
 from acorn.utils.version_utils import get_pyg_data_keys
 
-from acorn.utils import handle_hard_cuts
-
-import argparse
+from acorn.utils import handle_hard_cuts, handle_edge_features
+pd.set_option('display.float_format', '{:10.4f}'.format)
 
 from pynvml import *
 from pynvml.smi import nvidia_smi
@@ -54,7 +54,7 @@ def make_result_summary(
     return summary
 
 
-def tracking_efficiency(dataset, config): #plot_config,
+def tracking_efficiency(dataset, config):
     """
     Plot the track efficiency vs. pT of the edge.
     """
@@ -119,16 +119,16 @@ def tracking_efficiency(dataset, config): #plot_config,
     print(f"Efficiency: {eff:.3f}")
     print(f"Fake rate: {fake_rate:.3f}")
     print(f"Duplication rate: {dup_rate:.3f}")
+    
+    log = logging.getLogger("Track Building Results")
+    log.info("Result Summary :\n\n" + result_summary)
+    res_fname = os.path.join(
+        config["stage_dir"],
+        f"results_summary_{config['matching_style']}.txt",
+    )
 
-    #self.log.info("Result Summary :\n\n" + result_summary)
-
-    # res_fname = os.path.join(
-    #     self.hparams["stage_dir"],
-    #     f"results_summary_{self.hparams['matching_style']}.txt",
-    # )
-
-    # with open(res_fname, "w") as f:
-    #     f.write(result_summary)
+    with open(res_fname, "w") as f:
+        f.write(result_summary)
 
     # First get the list of particles without duplicates
     grouped_reco_particles = particles.groupby("particle_id")[
@@ -144,18 +144,19 @@ def tracking_efficiency(dataset, config): #plot_config,
     particles = particles.drop_duplicates(subset=["particle_id"])
 
     # Plot the results across pT and eta (if provided in conf file)
-    #os.makedirs(self.hparams["stage_dir"], exist_ok=True)
+    os.makedirs(config["stage_dir"], exist_ok=True)
 
-    # for var, varconf in plot_config["variables"].items():
-    #     utils.plot_eff(
-    #         particles,
-    #         var,
-    #         varconf,
-    #         save_path=os.path.join(
-    #             self.hparams["stage_dir"],
-    #             f"track_reconstruction_eff_vs_{var}_{self.hparams['matching_style']}.png",
-    #         ),
-    #     )
+    plot_config = config["plots"]['tracking_efficiency']
+    for var, varconf in plot_config['variables'].items():
+        utils.plot_eff(
+            particles,
+            var,
+            varconf,
+            save_path=os.path.join(
+                config["stage_dir"],
+                f"track_reconstruction_eff_vs_{var}_{config['matching_style']}.png",
+            ),
+        )
     
 def scale_features(event, config):
     """
@@ -186,192 +187,255 @@ def add_edge_features(event, config):
         handle_edge_features(event, config["edge_features"])
     return event
 
-def inference(mode, device, model_gnn, model_map, model_fil=None):
-    graphs = []
-    all_events_time = []
-    all_mm_time = []
-    if mode != 'map':
-        model_ml = model_map
-    
-    print(len(model_mm.valset))
-    for batch_idx, (graph, _, truth) in enumerate(model_mm.valset):
-        running_time = []
-        print(graph.event_id)
-        running_time.append(graph.event_id)
-        print(graph.x.size(0))
-        running_time.append(graph.x.size(0))
-        if mode == 'map':
-            gpu_time = 0
-            if device == 'cuda':
-                starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-            start = time.time()
-            start_event = start
-            if device == 'cuda':        
-                starter.record() #gpu
-                starter_event = starter
-            batch, mm_time_ind = model_map.build_graph(graph, truth)
-            mm_time = 0
-            if device == 'cuda':
-                ender.record()
-                torch.cuda.synchronize()
-                gpu_time = starter.elapsed_time(ender)/1000.0
-            end = time.time()
-            running_time.extend(((end - start), gpu_time))
+def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_resource, model_gnn, model_map, model_fil=None):
+    running_time = []
+    if config['debug']==True:
+        print(batch.event_id)
+
+    running_time.append(batch.event_id)
+    if config['debug']==True:
+        print(batch.x.size(0))
+    running_time.append(batch.x.size(0))
+    if config['graph_construction'] == 'ModuleMap':
+        gpu_time = 0
+        if device == 'cuda':
+            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start = time.time()
+        start_event = start
+        if device == 'cuda':        
+            starter.record() #gpu
+            starter_event = starter
+        batch, mm_time_ind = model_map.build_graph(batch, truth)
+        mm_time = 0
+        if device == 'cuda':
+            ender.record()
+            torch.cuda.synchronize()
+            gpu_time = starter.elapsed_time(ender)/1000.0
+        end = time.time()
+        running_time.extend(((end - start), gpu_time))
+        if config['debug']==True:
             print("MM: ", ((end - start), gpu_time))
-            #print(nvsmi.DeviceQuery('memory.free, memory.used'))
-  
-            gpu_time = 0
-            if device == 'cuda':
-                starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-            start = time.time()
-            if device == 'cuda':        
-                starter.record() #gpu   
-            handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
-            batch = scale_features(batch, model_gnn.hparams)
-            if config_gnn.get("edge_features") is not None:
-                event = add_edge_features(
-                event
-            )  # scaling must be done before adding features
+        #print(nvsmi.DeviceQuery('memory.free, memory.used'))
 
-            if device == 'cuda':
-                ender.record()
-                torch.cuda.synchronize()
-                gpu_time = starter.elapsed_time(ender)/1000.0
-            end = time.time()
-            running_time.extend(((end - start), gpu_time))
-            print("Preprocess GNN: ", ((end - start), gpu_time))
-
-            print(batch.edge_index.size(1))
-            running_time.append(batch.edge_index.size(1))
-        else:
-            with torch.no_grad():
-                if device == 'cuda':
-                    #with torch.cuda.amp.autocast():
-                        embedding = model_ml.apply_embedding(batch)
-            
-            batch.edge_index = build_edges(
-                query=embedding, database=embedding, indices=None, r_max=0.1, k_max=10, backend="FRNN"
-            )
-            R = batch.r**2 + batch.z**2
-            flip_edge_mask = R[batch.edge_index[0]] > R[batch.edge_index[1]]
-            batch.edge_index[:, flip_edge_mask] = batch.edge_index[:, flip_edge_mask].flip(0)
-            with torch.no_grad():
-                if device == 'cuda':
-                    #with torch.cuda.amp.autocast():
-                        out = model_fil(batch)   
-            preds = torch.sigmoid(out)
-            batch.edge_index = batch.edge_index[:, preds > model_fil.hparams['edge_cut']]            
-            
         gpu_time = 0
         if device == 'cuda':
             starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
         start = time.time()
         if device == 'cuda':        
             starter.record() #gpu   
+        #handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
+        batch = scale_features(batch, model_gnn.hparams)
 
+        if model_gnn.hparams["edge_features"] is not None:
+            batch = add_edge_features(
+            batch, model_gnn.hparams
+        )  # scaling must be done before adding features
+        batch = batch.to(device)
+        if device == 'cuda':
+            ender.record()
+            torch.cuda.synchronize()
+            gpu_time = starter.elapsed_time(ender)/1000.0
+        end = time.time()
+        running_time.extend(((end - start), gpu_time))
+        if config['debug']==True:
+            print("Preprocess GNN: ", ((end - start), gpu_time))
+
+            print(batch.edge_index.size(1))
+        running_time.append(batch.edge_index.size(1))
+    else:
         with torch.no_grad():
+            if device == 'cuda':
+                #with torch.cuda.amp.autocast():
+                    embedding = model_ml.apply_embedding(batch)
+        
+        batch.edge_index = build_edges(
+            query=embedding, database=embedding, indices=None, r_max=0.1, k_max=10, backend="FRNN"
+        )
+        R = batch.r**2 + batch.z**2
+        flip_edge_mask = R[batch.edge_index[0]] > R[batch.edge_index[1]]
+        batch.edge_index[:, flip_edge_mask] = batch.edge_index[:, flip_edge_mask].flip(0)
+        with torch.no_grad():
+            if device == 'cuda':
+                #with torch.cuda.amp.autocast():
+                    out = model_fil(batch)   
+        preds = torch.sigmoid(out)
+        batch.edge_index = batch.edge_index[:, preds > model_fil.hparams['edge_cut']]            
+        
+    gpu_time = 0
+    if device == 'cuda':
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    start = time.time()
+    if device == 'cuda':        
+        starter.record() #gpu   
+
+    with torch.no_grad():
+        with torch.cuda.amp.autocast():
             batch.scores = torch.sigmoid(model_gnn(batch))
-        max_memory_py = torch.cuda.max_memory_allocated(device) / 1024**3
+    #max_memory_py = torch.cuda.max_memory_allocated(device) / 1024**3
+    #max_memory_py = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
+    max_memory_py = 0
+    if config['debug']==True:
         print(f"Maximum memory allocated on {device}: {max_memory_py} GB")
 
-        edge_mask = batch.scores > config_tbi['score_cut']
-        if device == 'cuda':
-            ender.record()
-            torch.cuda.synchronize()
-            gpu_time = starter.elapsed_time(ender)/1000.0
-        end = time.time()
-        running_time.extend(((end - start), gpu_time))
+    edge_mask = batch.scores > config_tbi['score_cut_cc']
+    if device == 'cuda':
+        ender.record()
+        torch.cuda.synchronize()
+        gpu_time = starter.elapsed_time(ender)/1000.0
+    end = time.time()
+    running_time.extend(((end - start), gpu_time))
+    if config['debug']==True:
         print("GNN: ", ((end - start), gpu_time))
-        
-        gpu_time = 0
-        if device == 'cuda':
-            starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        start = time.time()
- 
-        if device == 'cuda':        
-            starter.record() #gpu          
-        # Get number of nodes
-        if hasattr(batch, "num_nodes"):
-            num_nodes = batch.num_nodes
-        elif hasattr(batch, "x"):
-            num_nodes = batch.x.size(0)
-        elif hasattr(batch, "x_x"):
-            num_nodes = batch.x_x.size(0)
-        else:
-            num_nodes = batch.edge_index.max().item() + 1
-        # Convert to sparse scipy array
-        sparse_edges = to_scipy_sparse_matrix(
-            batch.edge_index[:, edge_mask], num_nodes=num_nodes
-        )
-        # Run connected components
-        _, candidate_labels = sps.csgraph.connected_components(
-            sparse_edges, directed=False, return_labels=True
-        )
-        batch.labels = torch.from_numpy(candidate_labels).long()
+    
+    gpu_time = 0
+    if device == 'cuda':
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    start = time.time()
 
-        #tracking_efficiency(graphs, config_tbe)
-        if device == 'cuda':
-            ender.record()
-            torch.cuda.synchronize()
-            gpu_time = starter.elapsed_time(ender)/1000.0
-            gpu_time_event = starter_event.elapsed_time(ender)/1000.0
-        end = time.time()
+    if device == 'cuda':        
+        starter.record() #gpu          
+    # Get number of nodes
+    if hasattr(batch, "num_nodes"):
+        num_nodes = batch.num_nodes
+    elif hasattr(batch, "x"):
+        num_nodes = batch.x.size(0)
+    elif hasattr(batch, "x_x"):
+        num_nodes = batch.x_x.size(0)
+    else:
+        num_nodes = batch.edge_index.max().item() + 1
+    # Convert to sparse scipy array
+    sparse_edges = to_scipy_sparse_matrix(
+        batch.edge_index[:, edge_mask], num_nodes=num_nodes
+    )
+    # Run connected components
+    _, candidate_labels = sps.csgraph.connected_components(
+        sparse_edges, directed=False, return_labels=True
+    )
+    batch.labels = torch.from_numpy(candidate_labels).long()
 
-        running_time.extend(((end - start), gpu_time))
+    #tracking_efficiency(graphs, config_tbe)
+    if device == 'cuda':
+        ender.record()
+        torch.cuda.synchronize()
+        gpu_time = starter.elapsed_time(ender)/1000.0
+        gpu_time_event = starter_event.elapsed_time(ender)/1000.0
+    end = time.time()
+
+    running_time.extend(((end - start), gpu_time))
+    if config['debug']==True:
         print("Tracking: ", ((end - start), gpu_time))
-        
-        running_time.extend(((end - start_event), gpu_time_event))
+    
+    running_time.extend(((end - start_event), gpu_time_event))
+    if config['debug']==True:
         print("Total per event: ", ((end - start_event), gpu_time_event))  
-        running_time.extend([max_memory_py])    
-         
+    #max_memory_py = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
+    max_memory_py = 0
+    running_time.extend([max_memory_py])    
+    gc.collect()
+    torch.cuda.empty_cache()    
+    return batch, running_time, mm_time_ind
+
+def inference(config, device, model_gnn, model_map, model_fil=None):
+    mr = rmm.mr.get_current_device_resource()
+    stats_pool_memory_resource = rmm.mr.StatisticsResourceAdaptor(mr)
+    rmm.mr.set_current_device_resource(stats_pool_memory_resource)
+    resultsDF = pd.DataFrame()
+    
+    graphs = []
+    all_events_time = []
+    all_mm_time = []
+    if config['graph_construction'] != 'ModuleMap':
+        model_ml = model_map
+    wmode ='w'
+    header = True
+    if len(model_map.testset) < 100:
+        debug = True
+    # Warm up 
+    process_event(model_map.testset[0][0], model_map.testset[0][2], config, config_gnn, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_fil)
+    # Inference
+    for batch_idx, (graph, _, truth) in enumerate(model_mm.testset):
+        print("Event Id:", graph.event_id)
+        batch, running_time, mm_time_ind = process_event(graph, truth, config, config_gnn, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_fil)
         graphs.append(batch.to('cpu'))
-        del batch
-        gc.collect()
-        torch.cuda.empty_cache()
         all_events_time.append(running_time)
         all_mm_time.append(mm_time_ind)
-    tracking_efficiency(graphs, config_tbe)
+        # if batch_idx % 100 == 0 and batch_idx != 0:
+        #     print("Batch: ", batch_idx)
+        #     resultsDF = save_results(all_events_time, all_mm_time, resultsDF)
+        #     if batch_idx >= 100:
+        #         wmode ='a'
+        #         header = False
+        #     print(resultsDF)
+        #     resultsDF.to_csv(config['stage_dir']+'results.csv', mode=wmode, header=header)
+        #     all_events_time = []
+        #     all_mm_time = []
+    resultsDF = save_results(all_events_time, all_mm_time, resultsDF)
+    resultsDF.set_index('event_id', inplace=True)
+    resultsDF.loc['mean'] = resultsDF.mean()
+    resultsDF.loc['std'] = resultsDF.std()
+    resultsDF['#nodes'] = resultsDF['#nodes'].astype(int)
+    resultsDF['#edges'] = resultsDF['#edges'].astype(int)
+    print(resultsDF)
+    resultsDF.to_csv(config['stage_dir']+'results_final.csv', mode=wmode, header=header)
+    return graphs
+ 
+def save_results(list1, list2, resultsDF):
+    """
+    Save results to a file
+    """
+    df1 = pd.DataFrame(list1, columns=['event_id','#nodes','MM','MM_gpu','Pre','Pre_gpu',\
+        '#edges','GNN', 'GNN_gpu','Track','Track_gpu','Total','Total_gpu', 'MemoryPyT'])
+    df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
+    resultsIter = pd.concat([df1 , df2], axis=1)
+    resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
+    return resultsDF
 
-    return (all_events_time, all_mm_time)
     
 if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser(description='Inference args.')
-    parser.add_argument('--option', default='map', help='map for module map or metric for metric learning')
-    args = parser.parse_args()
-    print(args.option)
+    # parser = argparse.ArgumentParser(description='Inference args.')
+    # parser.add_argument('--option', default='map', help='map for module map or metric for metric learning')
+    # parser.add_argument('--example', default='CTD_2023', help='Directory of the example (config files) to run')
+    # parser.add_argument('--debug', default=False, help='Print infor per event')
+    # args = parser.parse_args()
+    # print(args.option)
     
     print("Torch CUDA available?", torch.cuda.is_available())
     device = "cuda" if torch.cuda.is_available() else "cpu"
     #device = "cpu"
     print(device)
     #use Rapids Memory Manager
-    #from rmm.allocators.torch import rmm_torch_allocator
+    from rmm.allocators.torch import rmm_torch_allocator
     #torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+    
     #torch.cuda.memory._record_memory_history()
-    torch.cuda.reset_max_memory_allocated() 
+    #torch.cuda.reset_max_memory_allocated() 
     #########################################
     ### 2 Initializing the Model
     #########################################
-    exPath = os.environ['HOME']+'/acorn/examples/Example_1/'
-    exPath_ml = os.environ['HOME']+'/acorn/examples/Example_2/'
-    exPath_fil = os.environ['HOME']+'/acorn/examples/Example_3/'
-    dataPath = '/pscratch/sd/a/alazar/cf/Example_1/feature_store/'
-    mmPath = '/pscratch/sd/a/alazar/cf/Example_1/module_map/'
-    confidr = exPath + 'data_reader.yaml'
-    if args.option == 'map':
+    example = 'CTD_2023'
+    exPath = os.environ['HOME']+'/acorn/examples/'+ example +'/'
+
+    configPipe = exPath + 'pipe_infer.yaml'
+    config_pipe = yaml.load(open(configPipe), Loader=yaml.FullLoader)
+    print(config_pipe)
+ 
+    configDr = exPath + config_pipe['data_reader']+'.yaml'
+    configGnn_infer = exPath + config_pipe['gnn_infer']+'.yaml'
+    configTbi = exPath + config_pipe['track_building']+'.yaml'
+    configTbe = exPath + config_pipe['track_evaluation']+'.yaml'
+    
+    if config_pipe['graph_construction'] == 'ModuleMap': 
         configMm = exPath + 'module_map_infer.yaml'
     else:
-        configMl = exPath_ml + 'metric_learning_infer.yaml'
-        configFil = exPath_ml + 'filter_infer.yaml'
-    configGnn = exPath + 'gnn_infer.yaml'
-    configGnn_eval = exPath + 'gnn_eval.yaml'
-    configTbi = exPath + 'track_building_infer.yaml'
-    configTbe = exPath + 'track_building_eval.yaml'
-
-    if args.option == 'map':    
+        configMl = exPath + 'metric_learning_infer.yaml'
+        configFil = exPath + 'filter_infer.yaml'
+    dataPath = config_pipe['input_dir']
+    
+    if config_pipe['graph_construction'] == 'ModuleMap':    
         config_mm = yaml.load(open(configMm), Loader=yaml.FullLoader)
-        print("Loading Module Map")
+        print("Loading Module Map", configMm)
         model_mm = PyModuleMap(config_mm)
         model_mm.load_module_map()
         model_mm.load_data(dataPath)
@@ -381,7 +445,7 @@ if __name__ == "__main__":
         config_ml = yaml.load(open(configMl), Loader=yaml.FullLoader)
         print("Loading Metric Learning")
         model_ml = MetricLearning(config_ml)
-        model_ml.load_from_checkpoint(config_ml['stage_dir']+'artifacts/last--v1.ckpt') 
+        model_ml.load_from_checkpoint(config_ml['stage_dir']+'artifacts/last-v2-180.ckpt') #last--v1.ckpt
         model_ml.load_data(dataPath)
         model_ml = model_ml.to(device)
         print("Loaded Metric Learning")
@@ -393,13 +457,15 @@ if __name__ == "__main__":
         model_fil = model_fil.to(device)
         print("Loaded Filtering")
     
-    config_gnn = yaml.load(open(configGnn), Loader=yaml.FullLoader)
+    config_gnn = yaml.load(open(configGnn_infer), Loader=yaml.FullLoader)
     config_tbi = yaml.load(open(configTbi), Loader=yaml.FullLoader)   
     config_tbe = yaml.safe_load(open(configTbe, "r"))
 
-    model_gnn = InteractionGNN.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/last--v1.ckpt')    
-    model_gnn.hparams['input_dir'] = mmPath
-    model_gnn.setup('predict')
+    model_gnn = InteractionGNN2.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/last-v2-180.ckpt',\
+        map_location=torch.device(device))    
+    #model_gnn.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    #model_gnn.hparams['input_dir'] = mmPath
+    #model_gnn.setup('predict')
     model_gnn = model_gnn.to(device)
  
     gpu_time = 0
@@ -410,10 +476,11 @@ if __name__ == "__main__":
     if device == 'cuda':
         starter.record()   
     #profile.run('inference(model_mm, model_gnn, device)')
-    if args.option == 'map':
-        list1, list2 = inference(args.option, device, model_gnn, model_mm)
+    
+    if config_pipe['graph_construction'] == 'ModuleMap':
+        graphs = inference(config_pipe, device, model_gnn, model_mm)
     else:
-        list1, list2 = inference(args.option, device, model_gnn, model_ml, model_fil)
+        graphs = inference(config_pipe, device, model_gnn, model_ml, model_fil)
     end = time.time()
     end_cpu = time.process_time()
     if device == 'cuda':
@@ -421,20 +488,9 @@ if __name__ == "__main__":
         torch.cuda.synchronize()
         gpu_time = starter.elapsed_time(ender)/1000.0    
     print("Total: ",((end - start),gpu_time))  
+    tracking_efficiency(graphs, config_tbe)
     #torch.cuda.memory._dump_snapshot("my_mem_snapshot.pickle")
     #print(torch.cuda.memory_summary(device))
 
-    df1 = pd.DataFrame(list1, columns=['event_id','#nodes','MM','MM_gpu','Preprocess','Preprocess_gpu',\
-        '#edges','GNN', 'GNN_gpu','Tracking','Tracking_gpu','Total','Total_gpu', 'MemoryPyT'])
-    #df1['#nodes'] = df1['#nodes'].astype(int)
-    #df1['#edges'] = df1['#edges'].astype(int) 
-    df2 = pd.DataFrame(list2, columns=['merge',"doublet edges","doublet edges 2","triplet edges","concat","get y","max_memory"])
-    resultsDF = pd.concat([df1 , df2], axis=1)
-    resultsDF.set_index('event_id', inplace=True)
-    resultsDF.loc['mean'] = resultsDF.mean()
-    resultsDF.loc['std'] = resultsDF.std()
-    resultsDF['#nodes'] = resultsDF['#nodes'].astype(int)
-    resultsDF['#edges'] = resultsDF['#edges'].astype(int)
-    print(resultsDF)
-    resultsDF.to_csv("resuts.csv")
+
 
