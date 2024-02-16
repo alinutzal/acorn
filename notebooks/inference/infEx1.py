@@ -187,7 +187,7 @@ def add_edge_features(event, config):
         handle_edge_features(event, config["edge_features"])
     return event
 
-def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_resource, model_gnn, model_map, model_fil=None):
+def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, model_map, model_fil=None, truth=None):
     running_time = []
     if config['debug']==True:
         print(batch.event_id)
@@ -206,7 +206,7 @@ def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_re
             starter.record() #gpu
             starter_event = starter
         batch, mm_time_ind = model_map.build_graph(batch, truth)
-        mm_time = 0
+        
         if device == 'cuda':
             ender.record()
             torch.cuda.synchronize()
@@ -217,35 +217,19 @@ def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_re
             print("MM: ", ((end - start), gpu_time))
         #print(nvsmi.DeviceQuery('memory.free, memory.used'))
 
+    else:
         gpu_time = 0
         if device == 'cuda':
             starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
         start = time.time()
+        start_event = start
         if device == 'cuda':        
-            starter.record() #gpu   
-        #handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
-        batch = scale_features(batch, model_gnn.hparams)
-
-        if model_gnn.hparams["edge_features"] is not None:
-            batch = add_edge_features(
-            batch, model_gnn.hparams
-        )  # scaling must be done before adding features
+            starter.record() #gpu
+            starter_event = starter
         batch = batch.to(device)
-        if device == 'cuda':
-            ender.record()
-            torch.cuda.synchronize()
-            gpu_time = starter.elapsed_time(ender)/1000.0
-        end = time.time()
-        running_time.extend(((end - start), gpu_time))
-        if config['debug']==True:
-            print("Preprocess GNN: ", ((end - start), gpu_time))
-
-            print(batch.edge_index.size(1))
-        running_time.append(batch.edge_index.size(1))
-    else:
         with torch.no_grad():
             if device == 'cuda':
-                #with torch.cuda.amp.autocast():
+                with torch.cuda.amp.autocast():
                     embedding = model_ml.apply_embedding(batch)
         
         batch.edge_index = build_edges(
@@ -259,7 +243,41 @@ def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_re
                 #with torch.cuda.amp.autocast():
                     out = model_fil(batch)   
         preds = torch.sigmoid(out)
-        batch.edge_index = batch.edge_index[:, preds > model_fil.hparams['edge_cut']]            
+        batch.edge_index = batch.edge_index[:, preds > model_fil.hparams['edge_cut']]  
+        if device == 'cuda':
+            ender.record()
+            torch.cuda.synchronize()
+            gpu_time = starter.elapsed_time(ender)/1000.0
+        end = time.time()
+        running_time.extend(((end - start), gpu_time))
+        if config['debug']==True:
+            print("MetricLearning: ", ((end - start), gpu_time))          
+
+    gpu_time = 0
+    if device == 'cuda':
+        starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    start = time.time()
+    if device == 'cuda':        
+        starter.record() #gpu   
+    #handle_hard_cuts(batch, model_gnn.hparams["hard_cuts"])
+    batch = scale_features(batch, model_gnn.hparams)
+
+    if model_gnn.hparams["edge_features"] is not None:
+        batch = add_edge_features(
+        batch, model_gnn.hparams
+    )  # scaling must be done before adding features
+    batch = batch.to(device)
+    if device == 'cuda':
+        ender.record()
+        torch.cuda.synchronize()
+        gpu_time = starter.elapsed_time(ender)/1000.0
+    end = time.time()
+    running_time.extend(((end - start), gpu_time))
+    if config['debug']==True:
+        print("Preprocess GNN: ", ((end - start), gpu_time))
+
+        print(batch.edge_index.size(1))
+    running_time.append(batch.edge_index.size(1))
         
     gpu_time = 0
     if device == 'cuda':
@@ -332,7 +350,8 @@ def process_event(batch, truth, config, config_gnn, device, stats_pool_memory_re
     max_memory_py = 0
     running_time.extend([max_memory_py])    
     gc.collect()
-    torch.cuda.empty_cache()    
+    torch.cuda.empty_cache()   
+    mm_time_ind = [] 
     return batch, running_time, mm_time_ind
 
 def inference(config, device, model_gnn, model_map, model_fil=None):
@@ -344,20 +363,24 @@ def inference(config, device, model_gnn, model_map, model_fil=None):
     graphs = []
     all_events_time = []
     all_mm_time = []
-    if config['graph_construction'] != 'ModuleMap':
-        model_ml = model_map
+    # if config['graph_construction'] != 'ModuleMap':
+    #     model_ml = model_map
     wmode ='w'
     header = True
     if len(model_map.testset) < 100:
         debug = True
     # Warm up 
-    #process_event(model_map.testset[0][0], model_map.testset[0][2], config, config_gnn, device, stats_pool_memory_resource,\
-    #        model_gnn, model_map, model_fil)
+    #process_event(model_map.testset[0][0], model_map.testset[0][2], config, device, stats_pool_memory_resource,\
+    #        model_gnn, model_map, model_fil, truth=None)
+    process_event(model_map.testset[0], config, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_fil, truth=None)
     # Inference
-    for batch_idx, (graph, _, truth) in enumerate(model_mm.testset):
+    print(model_map.testset)
+    for batch_idx, graph in enumerate(model_map.testset): #(graph, _, truth)
         print("Event Id:", graph.event_id)
-        batch, running_time, mm_time_ind = process_event(graph, truth, config, config_gnn, device, stats_pool_memory_resource,\
-            model_gnn, model_map, model_fil)
+        print(graph)
+        batch, running_time, mm_time_ind = process_event(graph, config, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_fil, truth=None)
         graphs.append(batch.to('cpu'))
         all_events_time.append(running_time)
         all_mm_time.append(mm_time_ind)
@@ -387,9 +410,10 @@ def save_results(list1, list2, resultsDF):
     """
     df1 = pd.DataFrame(list1, columns=['event_id','#nodes','MM','MM_gpu','Pre','Pre_gpu',\
         '#edges','GNN', 'GNN_gpu','Track','Track_gpu','Total','Total_gpu', 'MemoryPyT'])
-    df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
-    resultsIter = pd.concat([df1 , df2], axis=1)
-    resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
+    #df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
+    #resultsIter = pd.concat([df1 , df2], axis=1)
+    #resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
+    resultsDF = df1
     return resultsDF
 
     
@@ -421,8 +445,8 @@ if __name__ == "__main__":
     config_pipe = yaml.load(open(configPipe), Loader=yaml.FullLoader)
     print(config_pipe)
  
-    configDr = exPath + config_pipe['data_reader']+'.yaml'
-    configGnn_infer = exPath + config_pipe['gnn_infer']+'.yaml'
+    #configDr = exPath + config_pipe['data_reader']+'.yaml'
+    #configGnn_infer = exPath + config_pipe['gnn_infer']+'.yaml'
     configTbi = exPath + config_pipe['track_building']+'.yaml'
     configTbe = exPath + config_pipe['track_evaluation']+'.yaml'
     
@@ -442,31 +466,36 @@ if __name__ == "__main__":
         model_mm = model_mm.to(device)
         print("Loaded Module Map")
     else:
-        config_ml = yaml.load(open(configMl), Loader=yaml.FullLoader)
+        #config_ml = yaml.load(open(configMl), Loader=yaml.FullLoader)
         print("Loading Metric Learning")
-        model_ml = MetricLearning(config_ml)
-        model_ml.load_from_checkpoint(config_ml['stage_dir']+'artifacts/last-v2-180.ckpt') #last--v1.ckpt
+        #model_ml = MetricLearning(config_ml)
+        model_ml = MetricLearning.load_from_checkpoint(config_pipe['metric_learning_stage_dir']+'artifacts/best-11292882-f1=0.006355.ckpt',\
+                map_location=torch.device(device))   
+        configML = model_ml.hparams
+        #print(configML)
         model_ml.load_data(dataPath)
         model_ml = model_ml.to(device)
         print("Loaded Metric Learning")
         
-        config_fil = yaml.load(open(configFil), Loader=yaml.FullLoader)
+        #config_fil = yaml.load(open(configFil), Loader=yaml.FullLoader)
         print("Loading Filtering")
-        model_fil = Filter(config_fil)
-        model_fil.load_from_checkpoint(config_fil['stage_dir']+'artifacts/last--v1.ckpt') 
+        #model_fil = Filter(config_fil)
+        model_fil= Filter.load_from_checkpoint(config_pipe['filter_stage_dir']+'artifacts/best-11984324-auc=0.967753.ckpt',\
+                map_location=torch.device(device))    
+        configFil = model_fil.hparams
+        #print(configFil)
         model_fil = model_fil.to(device)
         print("Loaded Filtering")
     
-    config_gnn = yaml.load(open(configGnn_infer), Loader=yaml.FullLoader)
+    #config_gnn = yaml.load(open(configGnn_infer), Loader=yaml.FullLoader)
     config_tbi = yaml.load(open(configTbi), Loader=yaml.FullLoader)   
     config_tbe = yaml.safe_load(open(configTbe, "r"))
 
-    model_gnn = InteractionGNN2.load_from_checkpoint(config_gnn['stage_dir']+'artifacts/last-v2-180.ckpt',\
+    model_gnn = InteractionGNN2.load_from_checkpoint(config_pipe['gnn_stage_dir']+'artifacts/last-v2-180.ckpt',\
         map_location=torch.device(device))    
     #model_gnn.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     #model_gnn.hparams['input_dir'] = mmPath
     #model_gnn.setup('predict')
-    print(model_gnn.hparams)
     model_gnn = model_gnn.to(device)
  
     gpu_time = 0
