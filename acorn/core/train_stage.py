@@ -65,6 +65,7 @@ def train(config_file, checkpoint=None, sweep=False, checkpoint_resume_dir=None)
     # only does wandb when explicitly set log_wandb: true in config
     # additional condition: only initiate wandb when do wandb sweep. Initialize wandb at this stage, the run name will not be the same as SLURM_JOB_ID
     if wandb is not None and config.get("log_wandb", True) and sweep:
+        wandb.require("service")
         wandb.init(
             project=config["project"],
             # track hyperparameters and run metadata

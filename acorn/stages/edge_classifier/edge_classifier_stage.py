@@ -14,6 +14,7 @@
 
 import importlib
 import os
+import numpy as np
 import warnings
 from itertools import product
 from pytorch_lightning import LightningModule
@@ -54,7 +55,7 @@ class EdgeClassifierStage(LightningModule):
         Initialise the Lightning Module that can scan over different GNN training regimes
         """
         self.save_hyperparameters(hparams)
-
+        self.training_step_outputs = []
         # Assign hyperparameters
         self.trainset, self.valset, self.testset = None, None, None
         self.dataset_resolver = ClassResolver(
@@ -162,7 +163,7 @@ class EdgeClassifierStage(LightningModule):
         if self.trainset is None:
             return None
         num_workers = self.hparams.get("num_workers", [1, 1, 1])[0]
-        return DataLoader(self.trainset, batch_size=1, num_workers=num_workers)
+        return DataLoader(self.trainset, batch_size=1, num_workers=num_workers, pin_memory=True)
 
     def val_dataloader(self):
         """
@@ -171,7 +172,7 @@ class EdgeClassifierStage(LightningModule):
         if self.valset is None:
             return None
         num_workers = self.hparams.get("num_workers", [1, 1, 1])[1]
-        return DataLoader(self.valset, batch_size=1, num_workers=num_workers)
+        return DataLoader(self.valset, batch_size=1, num_workers=num_workers, pin_memory=True)
 
     def test_dataloader(self):
         """
@@ -180,7 +181,7 @@ class EdgeClassifierStage(LightningModule):
         if self.testset is None:
             return None
         num_workers = self.hparams.get("num_workers", [1, 1, 1])[2]
-        return DataLoader(self.testset, batch_size=1, num_workers=num_workers)
+        return DataLoader(self.testset, batch_size=1, num_workers=num_workers, pin_memory=True)
 
     def predict_dataloader(self):
         """
@@ -209,14 +210,19 @@ class EdgeClassifierStage(LightningModule):
             return None
         output = self(batch)
         loss, pos_loss, neg_loss = self.loss_function(output, batch)
-
+        #print(loss, pos_loss, neg_loss)
+        self.training_step_outputs.append(loss)
         self.log(
             "train_loss",
             loss,
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
+            #reduce_fx=torch.min,
+            #rank_zero_only=True,
+            #add_dataloader_idx=True,
         )
         self.log(
             "train_pos_loss",
@@ -224,7 +230,11 @@ class EdgeClassifierStage(LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
+            #reduce_fx=torch.min,
+            #rank_zero_only=True,
+            #add_dataloader_idx=True,
         )
         self.log(
             "train_neg_loss",
@@ -232,10 +242,24 @@ class EdgeClassifierStage(LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
+            #reduce_fx=torch.min,
+            #rank_zero_only=True,
+            #add_dataloader_idx=True,
         )
-
-        return loss
+        # self.log(
+        #     '0_5', 
+        #     torch.tensor(0.5, device=self.device), 
+        #     on_step=True, 
+        #     on_epoch=False, 
+        #     #prog_bar=True, 
+        #     sync_dist=True, 
+        #     logger=True,
+        #     rank_zero_only=True,
+        #     )''
+        #print(loss, pos_loss, neg_loss)
+        return {"loss": loss}
 
     def loss_function(self, output, batch, balance="proportional"):
         """
@@ -261,13 +285,13 @@ class EdgeClassifierStage(LightningModule):
             balance = "proportional"
 
         negative_mask = ((batch.y == 0) & (batch.weights != 0)) | (batch.weights < 0)
-
+        num_dev = float(self.hparams.get("devices", 1)*self.hparams.get("nodes", 1))
         negative_loss = F.binary_cross_entropy_with_logits(
             output[negative_mask],
             torch.zeros_like(output[negative_mask]),
             weight=batch.weights[negative_mask].abs(),
             reduction="sum",
-        )
+        )#/num_dev
 
         positive_mask = (batch.y == 1) & (batch.weights > 0)
         positive_loss = F.binary_cross_entropy_with_logits(
@@ -275,7 +299,7 @@ class EdgeClassifierStage(LightningModule):
             torch.ones_like(output[positive_mask]),
             weight=batch.weights[positive_mask].abs(),
             reduction="sum",
-        )
+        )#/num_dev
 
         if balance == "proportional":
             n = positive_mask.sum() + negative_mask.sum()
@@ -315,6 +339,7 @@ class EdgeClassifierStage(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         output_dict = self.shared_evaluation(batch, batch_idx)
+        #print(output_dict["loss"],output_dict["pos_loss"],output_dict["neg_loss"])
         self.log_metrics(
             output_dict["output"],
             output_dict["all_truth"],
@@ -327,7 +352,9 @@ class EdgeClassifierStage(LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
+            
         )
         self.log(
             "val_pos_loss",
@@ -335,6 +362,7 @@ class EdgeClassifierStage(LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
         )
         self.log(
@@ -343,22 +371,34 @@ class EdgeClassifierStage(LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=1,
+            logger=True,
             sync_dist=True,
         )
+
 
     def test_step(self, batch, batch_idx):
         return self.shared_evaluation(batch, batch_idx)
 
     def log_metrics(self, output, all_truth, target_truth, loss):
         scores = torch.sigmoid(output)
+        #print(len(scores),len(all_truth))
+        #print(scores)
+        
+        #scores = torch.sigmoid(self.all_gather(output))[0]
+        #print(len(scores))
+        #print(scores)
+
         preds = scores > self.hparams["edge_cut"]
 
         # Positives
         edge_positive = preds.sum().float()
 
         # Signal true & signal tp
+        #target_truth=self.all_gather(target_truth)[0]
+        #all_truth=self.all_gather(all_truth)[0]
         target_true = target_truth.sum().float()
         target_true_positive = (target_truth.bool() & preds).sum().float()
+
         all_true_positive = (all_truth.bool() & preds).sum().float()
 
         # add torch.sigmoid(output).float() to convert to float in case training is done with 16-bit precision
@@ -375,6 +415,8 @@ class EdgeClassifierStage(LightningModule):
         total_pur = all_true_positive / edge_positive
         purity = target_true_positive / true_and_fake_positive
         current_lr = self.optimizers().param_groups[0]["lr"]
+        
+        #print(target_eff,target_pur)
 
         self.log_dict(
             {
@@ -476,6 +518,28 @@ class EdgeClassifierStage(LightningModule):
             event.cpu(),
             os.path.join(self.hparams["stage_dir"], datatype, f"event{event_id}.pyg"),
         )
+    def on_after_backward(self):
+        # example to inspect gradient information in tensorboard
+        if self.trainer.global_step % 1 == 0:  # don't make the tf file huge
+            grad_vec = None
+            for p in self.parameters():
+                #p.grad.data.div_(batch["input"].shape[0])
+                if grad_vec is None:
+                    grad_vec = p.grad.data.view(-1)
+                else:
+                    grad_vec = torch.cat((grad_vec, p.grad.data.view(-1)))
+                    
+            #print(grad_vec.shape)   
+            
+    def on_train_epoch_end(self): 
+    #     # Aggregate epoch level training metrics
+        # do something with all training_step outputs, for example:
+        epoch_mean = torch.stack(self.training_step_outputs).mean()
+        #print(epoch_mean)
+        self.log("training_epoch_loss", epoch_mean, sync_dist=True)
+        # free up the memory
+        self.training_step_outputs.clear()
+  
 
     @classmethod
     def evaluate(cls, config, checkpoint=None):

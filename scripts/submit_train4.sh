@@ -2,7 +2,7 @@
 #SBATCH -A m4439_g
 #SBATCH -C gpu&hbm80g
 #SBATCH -N 1
-#SBATCH -q debug
+#SBATCH -q regular
 #SBATCH -c 32
 #SBATCH --gpu-bind=none
 #SBATCH --requeue 
@@ -10,7 +10,7 @@
 #SBATCH -J train4d
 #SBATCH --mail-type=ALL
 #SBATCH --signal=SIGUSR1@90
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --gpus-per-node=4
 #SBATCH --ntasks-per-node=4
 #SBATCH --module=gpu,nccl-2.18

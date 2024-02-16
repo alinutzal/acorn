@@ -1,8 +1,8 @@
 # CommonFramework configuration
 stage: track_building
 model: CCandWalk
-input_dir: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/gnn/
-stage_dir: MY_DATA_DIR/ATLAS-P2-ITK-23-00-03_Rel.21.9/ttbar/track/ # directory of the reco tracks
+input_dir: /pscratch/sd/a/alazar/cf/CTD_2023/gnn/
+stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/track/ # directory of the reco tracks
 
 # Dataset parameters
 data_split: [10, 10, 10] # Number of [training, validation, testing] examples

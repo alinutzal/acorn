@@ -253,7 +253,7 @@ def plot_eff(
 
     # Plot the ratio of the histograms as an efficiency
     eff, err = get_ratio(reco_vals, true_vals)
-
+   
     xvals = (true_bins[1:] + true_bins[:-1]) / 2
     xerrs = (true_bins[1:] - true_bins[:-1]) / 2
 
@@ -262,7 +262,7 @@ def plot_eff(
         xvals,
         eff,
         xerr=xerrs,
-        yerr=err,
+        yerr=err[0],
         fmt="o",
         color="black",
         label="Track efficiency",

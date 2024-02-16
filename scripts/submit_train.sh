@@ -10,7 +10,7 @@
 #SBATCH -J train
 #SBATCH --mail-type=ALL
 #SBATCH --signal=SIGUSR1@90
-#SBATCH --time=01:00:00
+#SBATCH --time=03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --module=gpu,nccl-2.18

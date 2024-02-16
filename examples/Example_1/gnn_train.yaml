@@ -10,7 +10,7 @@ nodes: 1
 num_workers: [16,16,16]
 
 # Dataset parameters
-data_split: [80, 10, 10] # Number of [training, validation, testing] examples
+data_split: [4, 10, 10] # Number of [training, validation, testing] examples
 
 # Truth and weighting parameters. Syntax is...
 # Single value: track[key] == value
@@ -29,7 +29,7 @@ weighting:
 # A list of hard cut conditions. Any hits not passing these conditions will be removed from the training and validation dataset.
 # By definition, noise will not pass any of these cuts, so any hard cuts will remove noise.
 hard_cuts:
-  pt: [1000, .inf]
+  pt: [0, .inf]
 
 # Model parameters
 edge_cut: 0.5
@@ -53,4 +53,4 @@ warmup: 5
 lr: 0.001
 factor: 0.9
 patience: 10
-max_epochs: 100
+max_epochs: 10

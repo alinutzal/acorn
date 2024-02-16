@@ -1,1 +1,1 @@
-sbatch -n 1 ./scripts/submit_train4.sh #acorn train ../examples/Example_1/gnn_train.yaml
+sbatch -n 1 ./scripts/submit_train.sh #acorn train ../examples/Example_1/gnn_train.yaml
