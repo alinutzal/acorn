@@ -351,8 +351,8 @@ def inference(config, device, model_gnn, model_map, model_fil=None):
     if len(model_map.testset) < 100:
         debug = True
     # Warm up 
-    process_event(model_map.testset[0][0], model_map.testset[0][2], config, config_gnn, device, stats_pool_memory_resource,\
-            model_gnn, model_map, model_fil)
+    #process_event(model_map.testset[0][0], model_map.testset[0][2], config, config_gnn, device, stats_pool_memory_resource,\
+    #        model_gnn, model_map, model_fil)
     # Inference
     for batch_idx, (graph, _, truth) in enumerate(model_mm.testset):
         print("Event Id:", graph.event_id)
@@ -466,6 +466,7 @@ if __name__ == "__main__":
     #model_gnn.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     #model_gnn.hparams['input_dir'] = mmPath
     #model_gnn.setup('predict')
+    print(model_gnn.hparams)
     model_gnn = model_gnn.to(device)
  
     gpu_time = 0

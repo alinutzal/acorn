@@ -71,7 +71,7 @@ def infer(config_file, verbose=None, checkpoint=None):
         stage_module.infer(config)
 
 
-def lightning_infer(config, stage_module, checkpoint=None):
+def lightning_infer(config, stage_module, checkpoint=None, device="cuda"):
     checkpoint_path = (
         checkpoint
         if checkpoint
@@ -84,7 +84,7 @@ def lightning_infer(config, stage_module, checkpoint=None):
         sys.exit(1)
     print(f"Loading checkpoint: {checkpoint_path}")
 
-    stage_module = stage_module.load_from_checkpoint(checkpoint_path)
+    stage_module = stage_module.load_from_checkpoint(checkpoint_path, map_location=torch.device(device))
     stage_module._hparams = {**stage_module._hparams, **config}
 
     # setup stage

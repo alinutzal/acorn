@@ -124,7 +124,7 @@ class PyModuleMap(GraphConstructionStage):
                 continue
 
             (graph,r_time) = self.build_graph(graph, truth)
-            all_time = all_time.append(r_time)
+            all_time.append(r_time)
             torch.save(graph, os.path.join(output_dir, f"event{graph.event_id}.pyg"))
         #print(all_time)
 
