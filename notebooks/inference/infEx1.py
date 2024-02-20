@@ -19,6 +19,7 @@ from acorn.stages.graph_construction.models.utils import graph_intersection, bui
 from acorn.stages.track_building import utils 
 from torch_geometric.utils import to_scipy_sparse_matrix
 from acorn.utils.version_utils import get_pyg_data_keys
+from acorn.stages.track_building.models.cc_and_walk import _build_tracks_one_evt
 
 from acorn.utils import handle_hard_cuts, handle_edge_features
 pd.set_option('display.float_format', '{:10.4f}'.format)
@@ -187,7 +188,7 @@ def add_edge_features(event, config):
         handle_edge_features(event, config["edge_features"])
     return event
 
-def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, model_map, model_fil=None, truth=None):
+def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, model_map, truth, model_fil=None):
     running_time = []
     if config['debug']==True:
         print(batch.event_id)
@@ -206,6 +207,7 @@ def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, 
             starter.record() #gpu
             starter_event = starter
         batch, mm_time_ind = model_map.build_graph(batch, truth)
+        print("MM: ", mm_time_ind)
         
         if device == 'cuda':
             ender.record()
@@ -214,7 +216,7 @@ def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, 
         end = time.time()
         running_time.extend(((end - start), gpu_time))
         if config['debug']==True:
-            print("MM: ", ((end - start), gpu_time))
+            print("ModuleM: ", ((end - start), gpu_time))
         #print(nvsmi.DeviceQuery('memory.free, memory.used'))
 
     else:
@@ -289,9 +291,9 @@ def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, 
     with torch.no_grad():
         with torch.cuda.amp.autocast():
             batch.scores = torch.sigmoid(model_gnn(batch))
-    #max_memory_py = torch.cuda.max_memory_allocated(device) / 1024**3
+    max_memory_py = torch.cuda.max_memory_allocated(device) / 1024**3
     #max_memory_py = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
-    max_memory_py = 0
+    #max_memory_py = 0
     if config['debug']==True:
         print(f"Maximum memory allocated on {device}: {max_memory_py} GB")
 
@@ -312,24 +314,26 @@ def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, 
 
     if device == 'cuda':        
         starter.record() #gpu          
-    # Get number of nodes
-    if hasattr(batch, "num_nodes"):
-        num_nodes = batch.num_nodes
-    elif hasattr(batch, "x"):
-        num_nodes = batch.x.size(0)
-    elif hasattr(batch, "x_x"):
-        num_nodes = batch.x_x.size(0)
-    else:
-        num_nodes = batch.edge_index.max().item() + 1
-    # Convert to sparse scipy array
-    sparse_edges = to_scipy_sparse_matrix(
-        batch.edge_index[:, edge_mask], num_nodes=num_nodes
-    )
-    # Run connected components
-    _, candidate_labels = sps.csgraph.connected_components(
-        sparse_edges, directed=False, return_labels=True
-    )
-    batch.labels = torch.from_numpy(candidate_labels).long()
+    # # Get number of nodes
+    # if hasattr(batch, "num_nodes"):
+    #     num_nodes = batch.num_nodes
+    # elif hasattr(batch, "x"):
+    #     num_nodes = batch.x.size(0)
+    # elif hasattr(batch, "x_x"):
+    #     num_nodes = batch.x_x.size(0)
+    # else:
+    #     num_nodes = batch.edge_index.max().item() + 1
+    # # Convert to sparse scipy array
+    # sparse_edges = to_scipy_sparse_matrix(
+    #     batch.edge_index[:, edge_mask], num_nodes=num_nodes
+    # )
+    # # Run connected components
+    # _, candidate_labels = sps.csgraph.connected_components(
+    #     sparse_edges, directed=False, return_labels=True
+    # )
+    # batch.labels = torch.from_numpy(candidate_labels).long()
+    
+    batch = _build_tracks_one_evt(batch)
 
     #tracking_efficiency(graphs, config_tbe)
     if device == 'cuda':
@@ -347,11 +351,11 @@ def process_event(batch, config, device, stats_pool_memory_resource, model_gnn, 
     if config['debug']==True:
         print("Total per event: ", ((end - start_event), gpu_time_event))  
     #max_memory_py = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
-    max_memory_py = 0
+    #max_memory_py = 0
     running_time.extend([max_memory_py])    
     gc.collect()
     torch.cuda.empty_cache()   
-    mm_time_ind = [] 
+    #mm_time_ind = [] 
     return batch, running_time, mm_time_ind
 
 def inference(config, device, model_gnn, model_map, model_fil=None):
@@ -370,17 +374,17 @@ def inference(config, device, model_gnn, model_map, model_fil=None):
     if len(model_map.testset) < 100:
         debug = True
     # Warm up 
-    #process_event(model_map.testset[0][0], model_map.testset[0][2], config, device, stats_pool_memory_resource,\
+    process_event(model_map.testset[0][0], config, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_map.testset[0][2], model_fil)
+    #process_event(model_map.testset[0], config, device, stats_pool_memory_resource,\
     #        model_gnn, model_map, model_fil, truth=None)
-    process_event(model_map.testset[0], config, device, stats_pool_memory_resource,\
-            model_gnn, model_map, model_fil, truth=None)
     # Inference
     print(model_map.testset)
-    for batch_idx, graph in enumerate(model_map.testset): #(graph, _, truth)
+    for batch_idx, (graph, _, truth) in enumerate(model_map.testset): #(graph, _, truth)
         print("Event Id:", graph.event_id)
-        print(graph)
         batch, running_time, mm_time_ind = process_event(graph, config, device, stats_pool_memory_resource,\
-            model_gnn, model_map, model_fil, truth=None)
+            model_gnn, model_map, truth, model_fil)
+        print(mm_time_ind)
         graphs.append(batch.to('cpu'))
         all_events_time.append(running_time)
         all_mm_time.append(mm_time_ind)
@@ -394,6 +398,8 @@ def inference(config, device, model_gnn, model_map, model_fil=None):
         #     resultsDF.to_csv(config['stage_dir']+'results.csv', mode=wmode, header=header)
         #     all_events_time = []
         #     all_mm_time = []
+    print(all_events_time)
+    print(all_mm_time)
     resultsDF = save_results(all_events_time, all_mm_time, resultsDF)
     resultsDF.set_index('event_id', inplace=True)
     resultsDF.loc['mean'] = resultsDF.mean()
@@ -410,10 +416,10 @@ def save_results(list1, list2, resultsDF):
     """
     df1 = pd.DataFrame(list1, columns=['event_id','#nodes','MM','MM_gpu','Pre','Pre_gpu',\
         '#edges','GNN', 'GNN_gpu','Track','Track_gpu','Total','Total_gpu', 'MemoryPyT'])
-    #df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
-    #resultsIter = pd.concat([df1 , df2], axis=1)
-    #resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
-    resultsDF = df1
+    df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
+    resultsIter = pd.concat([df1 , df2], axis=1)
+    resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
+    #resultsDF = df1
     return resultsDF
 
     
