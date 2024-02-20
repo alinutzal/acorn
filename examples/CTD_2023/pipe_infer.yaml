@@ -1,9 +1,12 @@
 stage: pipeline_inference
-debug: False
+debug: True
 input_dir: /global/cfs/cdirs/m4439/CTD2023/
-stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/track_all/ 
+stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/track_ccwalk/ 
+gnn_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/gnn/
+metric_learning_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/metric_learning/
+filter_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/filter/
 
-graph_construction: ModuleMap 
+graph_construction: ModuleMap  #MetricLearning #ModuleMap 
 
 model_gnn: InteractionGNN2
 model_track: CCandWalk
