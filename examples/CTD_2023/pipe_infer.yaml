@@ -6,9 +6,9 @@ gnn_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/gnn/
 metric_learning_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/metric_learning/
 filter_stage_dir: /pscratch/sd/a/alazar/cf/CTD_2023/filter/
 
-graph_construction: ModuleMap  #MetricLearning #ModuleMap 
+graph_construction: MetricLearning #ModuleMap 
 
-model_gnn: InteractionGNN2
+model_gnn: InteractionGNN
 model_track: CCandWalk
 
 data_reader: data_reader
@@ -17,5 +17,5 @@ track_building: track_building_infer
 track_evaluation: track_building_eval
 
 # Dataset parameters
-data_split: [0, 0, 1000] # Number of [training, validation, testing] examples
+data_split: [0, 10, 10] # Number of [training, validation, testing] examples
     

@@ -293,8 +293,6 @@ class EventDataset(Dataset):
                         self.input_dir, self.data_name, f"event{self.evt_ids[idx]}.pyg"
                     )
                 )
-            if not self.use_csv:
-                return graph
 
         if self.use_csv:
             particles = pd.read_csv(
@@ -311,8 +309,6 @@ class EventDataset(Dataset):
                     f"event{self.evt_ids[idx]}-truth.csv",
                 )
             )
-            if not self.use_pyg:
-                return particles, hits
 
         return graph, particles, hits
 
