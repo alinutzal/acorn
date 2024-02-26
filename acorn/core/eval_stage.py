@@ -28,7 +28,7 @@ import yaml
 import click
 import logging
 
-from pytorch_lightning import LightningModule
+from lightning.pytorch import LightningModule
 import torch
 
 from .core_utils import str_to_class, find_latest_checkpoint

@@ -29,7 +29,7 @@ sys.path.append("../")
 import os
 import re
 
-from pytorch_lightning import LightningModule
+from lightning.pytorch import LightningModule
 from torch_geometric.data import Dataset
 import torch
 import numpy as np

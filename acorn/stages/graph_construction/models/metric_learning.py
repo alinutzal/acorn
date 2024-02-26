@@ -41,6 +41,7 @@ class MetricLearning(GraphConstructionStage, LightningModule):
         """
 
         # Construct the MLP architecture
+        print(hparams)
         in_channels = len(hparams["node_features"])
 
         self.network = make_mlp(
@@ -106,6 +107,7 @@ class MetricLearning(GraphConstructionStage, LightningModule):
         optimizer = [
             torch.optim.AdamW(
                 self.parameters(),
+                #self.trainer.model.parameters(),
                 lr=(self.hparams["lr"]),
                 betas=(0.9, 0.999),
                 eps=1e-08,
@@ -608,7 +610,8 @@ class GraphDataset(Dataset):
         """
         Handle feature scaling for the event
         """
-
+        print("Node F:", self.hparams['node_features'])
+        print("Evens: ", get_pyg_data_keys(event))
         if (
             self.hparams is not None
             and "node_scales" in self.hparams.keys()

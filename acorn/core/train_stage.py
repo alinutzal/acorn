@@ -29,7 +29,7 @@ try:
 except ImportError:
     wandb = None
 
-from pytorch_lightning import LightningModule
+from lightning.pytorch import LightningModule
 
 from .core_utils import str_to_class, get_trainer, get_stage_module
 

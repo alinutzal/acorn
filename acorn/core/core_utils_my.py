@@ -28,8 +28,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from acorn import stages
 from acorn.stages import *  # noqa
-from pytorch_lightning.strategies.ddp import DDPStrategy
-#from lightning.pytorch.strategies import FSDPStrategy
+#from pytorch_lightning.strategies.ddp import DDPStrategy
+from lightning.pytorch.strategies import FSDPStrategy
 #from pytorch_lightning.callbacks import StochasticWeightAveraging
 from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.loggers.wandb import WandbLogger
@@ -182,7 +182,7 @@ def get_trainer(config, default_root_dir, model):
     )
     checkpoint_callback.CHECKPOINT_NAME_LAST = f"last-{filename_suffix}"
 
-    trainer = Trainer(
+    trainer = L.Trainer(
         accelerator=accelerator,
         devices=devices,
         num_nodes=config["nodes"],
@@ -190,9 +190,9 @@ def get_trainer(config, default_root_dir, model):
         callbacks=[checkpoint_callback], #,StochasticWeightAveraging(swa_lrs=0.05)], #,DDPIterationsPerSecondCallback()],
         logger=logger,
         precision=config.get("precision", 32),
-        strategy=DDPStrategy(find_unused_parameters=False, static_graph=True),
+        #strategy=DDPStrategy(find_unused_parameters=False, static_graph=True),
         #strategy="deepspeed_stage_2",
-        #strategy = FSDPStrategy(cpu_offload=True),
+        strategy = FSDPStrategy(state_dict_type="sharded",cpu_offload=True),
         deterministic=True,
         #profiler="simple",
         #accumulate_grad_batches=2,

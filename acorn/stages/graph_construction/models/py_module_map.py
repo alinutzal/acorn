@@ -14,6 +14,7 @@
 
 # 3rd party imports
 import os
+import gc
 import logging
 import pandas as pd
 import numpy as np
@@ -126,12 +127,14 @@ class PyModuleMap(GraphConstructionStage):
             (graph,r_time) = self.build_graph(graph, truth)
             all_time.append(r_time)
             torch.save(graph, os.path.join(output_dir, f"event{graph.event_id}.pyg"))
+            del graph
         #print(all_time)
 
     def build_graph(self, graph, truth):
         """
         Build the graph for the data.
         """
+        print("Event_id:",graph.event_id)
         # Get timing
         running_time_mm = []
         start_time = time.time()
@@ -265,8 +268,9 @@ class PyModuleMap(GraphConstructionStage):
         graph.truth_map = truth_map
         #torch.cuda.nvtx.range_pop()
         max_mem = stats_pool_memory_resource.allocation_counts['peak_bytes'] / 1024**3
-        #print("Max memory usage: ", max_mem)
-
+        print("Max memory usage: ", max_mem)
+        del merged_hits_1, merged_hits_2, doublet_edges_1, doublet_edges_2, triplet_edges, doublet_edges, hits
+        gc.collect()
         #print(f"Time to get y: {time.time() - start_time}")
         running_time_mm.extend([(time.time() - start_time)])
         running_time_mm.extend([max_mem])
@@ -318,7 +322,8 @@ class PyModuleMap(GraphConstructionStage):
             doublet_edges.append(subset_edges)
             # print(f"Memory usage c: {subset_edges.memory_usage(deep=True).sum() / 1e9} GB")
             # Delete everything
-            del subset_edges
+            del subset_edges, subset_merged
+            gc.collect()
 
         # print(f"Memory usage 2: {merged_hits.memory_usage(deep=True).sum() / 1e9} GB")
 

@@ -151,7 +151,7 @@ class EventReader:
         particles = particles.rename(columns={"eta": "eta_particle"})
         hits = pd.read_csv(event["truth"])
         hits, particles = self._merge_particles_to_hits(hits, particles)
-        hits = self._add_handengineered_features(hits)
+        #hits = self._add_handengineered_features(hits)
         hits = self._clean_noise_duplicates(hits)
         tracks, track_features, hits = self._build_true_tracks(hits)
         hits, particles, tracks = self._custom_processing(hits, particles, tracks)

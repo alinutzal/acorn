@@ -23,14 +23,18 @@ try:
 except ImportError:
     wandb = None
 import yaml
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+#from pytorch_lightning import Trainer
+#from pytorch_lightning.callbacks import ModelCheckpoint
 
+import lightning as L
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint
 from acorn import stages
 from acorn.stages import *  # noqa
-from pytorch_lightning.strategies.ddp import DDPStrategy
-from pytorch_lightning.loggers import CSVLogger
-from pytorch_lightning.loggers.wandb import WandbLogger
+from lightning.pytorch.strategies import DDPStrategy
+#from lightning.pytorch.strategies import FSDPStrategy
+from lightning.pytorch.loggers import CSVLogger
+from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.utilities import disable_possible_user_warnings
 
 # ignore all warnings that could be false positives
@@ -159,12 +163,15 @@ def get_trainer(config, default_root_dir):
     return Trainer(
         accelerator=accelerator,
         devices=devices,
+        profiler="simple",
         num_nodes=config["nodes"],
         max_epochs=config["max_epochs"],
         callbacks=[checkpoint_callback],
         logger=logger,
-        precision=config.get("precision", 32),
+        precision=config.get("precision", 16),
         strategy=DDPStrategy(find_unused_parameters=False, static_graph=True),
+        #cpu_offload=True, state_dict_type="sharded"
+        #strategy = FSDPStrategy(sharding_strategy="FULL_SHARD"), 
         #deterministic=True,
         default_root_dir=default_root_dir,
     )

@@ -29,9 +29,9 @@ def check():
         print("torch not found")
 
     try:
-        import pytorch_lightning
+        import lightning.pytorch
 
-        print("pytorch_lightning: ", pytorch_lightning.__version__)
+        print("pytorch_lightning: ", lightning.pytorch.__version__)
     except ImportError:
         print("pytorch_lightning not found")
 

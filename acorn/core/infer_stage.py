@@ -29,8 +29,8 @@ import click
 import logging
 import torch
 
-from pytorch_lightning import Trainer
-from pytorch_lightning import LightningModule
+from lightning.pytorch import Trainer
+from lightning.pytorch import LightningModule
 
 from .core_utils import str_to_class, find_latest_checkpoint
 

@@ -128,8 +128,8 @@ def handle_weighting(event, weighting_config):
 
 
 def handle_hard_cuts(event, hard_cuts_config):
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    event = event.to(device)
+    #device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    #event = event.to(device)
     true_track_mask = torch.ones_like(event.truth_map, dtype=torch.bool, device=event.y.device)
 
     for condition_key, condition_val in hard_cuts_config.items():

@@ -2,7 +2,7 @@ from atlasify import atlasify
 import os
 from matplotlib import pyplot as plt
 import numpy as np
-from pytorch_lightning import LightningModule
+from lightning.pytorch import LightningModule
 from sklearn.metrics import auc, roc_curve
 import torch
 from tqdm import tqdm
@@ -221,7 +221,7 @@ def graph_scoring_efficiency(lightning_module, plot_config, config):
     ):
         # Divide the two histograms to get the edgewise efficiency
         hist, err = get_ratio(true_pos_hist, true_hist)
-
+        print(hist,err)
         fig, ax = plot_1d_histogram(
             hist,
             bins,

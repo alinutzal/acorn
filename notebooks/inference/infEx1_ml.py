@@ -422,7 +422,7 @@ def process_event(batch_idx, batch, config, device, stats_pool_memory_resource, 
     running_time.extend([max_memory_py])    
     gc.collect()
     torch.cuda.empty_cache()   
-    #mm_time_ind = [] 
+    mm_time_ind = [] 
     return batch, running_time, mm_time_ind
 
 def inference(config, device, model_gnn, model_map, model_fil=None):
@@ -442,17 +442,17 @@ def inference(config, device, model_gnn, model_map, model_fil=None):
     if len(model_map.testset) < 100:
         debug = True
     # Warm up 
-    process_event(0, model_map.testset[0][0], config, device, stats_pool_memory_resource,\
-            model_gnn, model_map,  model_fil, model_map.testset[0][2])
-    #process_event(0, model_map.testset[0], config, device, stats_pool_memory_resource,\
-    #        model_gnn, model_map, model_fil, truth=None)
+    #process_event(0, model_map.testset[0][0], config, device, stats_pool_memory_resource,\
+    #        model_gnn, model_map,  model_fil, model_map.testset[0][2])
+    process_event(0, model_map.testset[0], config, device, stats_pool_memory_resource,\
+            model_gnn, model_map, model_fil, truth=None)
     # Inference
 
-    for batch_idx, (graph, _, truth) in enumerate(model_map.testset): #(graph, _, truth)
+    for batch_idx, graph in enumerate(model_map.testset): #(graph, _, truth)
         print("Event Id:", graph.event_id, batch_idx)
         if graph.event_id == '005008416' or graph.event_id == '005008427' or graph.event_id == '005008421': continue
         batch, running_time, mm_time_ind = process_event(batch_idx, graph, config, device, stats_pool_memory_resource,\
-            model_gnn, model_map, model_fil, truth)
+            model_gnn, model_map, model_fil, truth=None)
         #print(mm_time_ind)
         graphs.append(batch.to('cpu'))
         all_events_time.append(running_time)
@@ -485,10 +485,10 @@ def save_results(list1, list2, resultsDF):
     """
     df1 = pd.DataFrame(list1, columns=['event_id','#nodes','MM','MM_gpu','Pre','Pre_gpu',\
         '#edges','GNN', 'GNN_gpu','Track','Track_gpu','Total','Total_gpu', 'MemoryPyT'])
-    df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
-    resultsIter = pd.concat([df1 , df2], axis=1)
-    resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
-    #resultsDF = df1
+    #df2 = pd.DataFrame(list2, columns=['merge',"doublet","doublet2","triplet","concat","get y","max_memory"])
+    #resultsIter = pd.concat([df1 , df2], axis=1)
+    #resultsDF = pd.concat([resultsDF, resultsIter], axis=0)
+    resultsDF = df1
     return resultsDF
 
     
@@ -553,7 +553,7 @@ if __name__ == "__main__":
         #     dump = yaml.dump(configML, default_flow_style = False, allow_unicode = True, encoding = None)
         #     yaml_file.write( dump )
         print(dataPath_ml)
-        model_ml.hparams['data_split'] = [1,1,77]
+        model_ml.hparams['data_split'] = [1,1,103]
         model_ml.load_data(dataPath_ml)
         model_ml = model_ml.to(device)
         print("Loaded Metric Learning")

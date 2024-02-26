@@ -572,11 +572,11 @@ class InteractionGNN2(EdgeClassifierStage):
 
         # Encode nodes and edges features into latent spaces
         if self.hparams["checkpointing"]:
-            x = checkpoint(self.node_encoder, x)
+            x = checkpoint(self.node_encoder, x, use_reentrant=False)
             if edge_attr is not None:
-                e = checkpoint(self.edge_encoder, edge_attr)
+                e = checkpoint(self.edge_encoder, edge_attr, use_reentrant=False)
             else:
-                e = checkpoint(self.edge_encoder, torch.cat([x[src], x[dst]], dim=-1))
+                e = checkpoint(self.edge_encoder, torch.cat([x[src], x[dst]], dim=-1), use_reentrant=False)
         else:
             x = self.node_encoder(x)
             if edge_attr is not None:
@@ -597,15 +597,15 @@ class InteractionGNN2(EdgeClassifierStage):
         for i in range(self.hparams["n_graph_iters"]):
             if self.hparams["checkpointing"]:
                 if self.hparams["concat"]:
-                    x = checkpoint(self.concat, x, input_x)
-                    e = checkpoint(self.concat, e, input_e)
+                    x = checkpoint(self.concat, x, input_x, use_reentrant=False)
+                    e = checkpoint(self.concat, e, input_e, use_reentrant=False)
                 if (
                     self.hparams["node_net_recurrent"]
                     and self.hparams["edge_net_recurrent"]
                 ):
-                    x, e, out = checkpoint(self.message_step, x, e, src, dst)
+                    x, e, out = checkpoint(self.message_step, x, e, src, dst, use_reentrant=False)
                 else:
-                    x, e, out = checkpoint(self.message_step, x, e, src, dst, i)
+                    x, e, out = checkpoint(self.message_step, x, e, src, dst, i, use_reentrant=False)
             else:
                 if self.hparams["concat"]:
                     x = torch.cat([x, input_x], dim=-1)
